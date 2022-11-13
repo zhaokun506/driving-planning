@@ -1,0 +1,13 @@
+aux_source_directory(. EMPLANNER_SRC)
+
+add_library(EMPlanner trajectory.cc)
+
+message(工程目录是：${PROJECT_SOURCE_DIR})
+
+target_include_directories(EMPlanner PUBLIC 
+                            ${PROJECT_SOURCE_DIR}#工程目录
+                            "usr/include"#系统目录
+                            "usr/local/include"#安装文件目录
+)
+
+#target_link_libraries(perception PUBLIC)
