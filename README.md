@@ -22,6 +22,7 @@
         1.参考线的截取
         2.参考线的平滑
 
+![参考系平滑](https://user-images.githubusercontent.com/54465004/201812152-533bb555-c0a2-46b2-8369-432a21c60b68.png)
 
 
     疑问点：
