@@ -24,7 +24,10 @@
 参考线平滑结果：
 ![参考系平滑](https://user-images.githubusercontent.com/54465004/201812152-533bb555-c0a2-46b2-8369-432a21c60b68.png)
 
-    
-此程序参照b站忠厚老实的老王的matlab程序编写的C++程序，routing perception localization做了理想假设
 
-此程序设置定位模块是选取轨迹对应点+随机误差，驾驶控制是完美的
+
+参考文献：
+参照b站忠厚老实的老王 自动驾驶决策规划算法，routing perception localization做了理想假设
+apollo
+湖南大学 李柏 自动驾驶决策规划算法
+
