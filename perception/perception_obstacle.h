@@ -7,7 +7,7 @@ class PerceptionObstacle {
 
 public:
   PerceptionObstacle(/* args */);
-  ~PerceptionObstacle();
+  ~PerceptionObstacle() = default;
   const std::vector<ObstacleInfo> static_obstacles() const;
   const std::vector<ObstacleInfo> dynamic_obstacles() const;
   void UpdateObstacleInfo(
@@ -25,4 +25,3 @@ private:
   std::vector<ObstacleInfo> static_obstacles_;
   std::vector<ObstacleInfo> dynamic_obstacles_;
 };
-

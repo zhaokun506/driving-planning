@@ -16,7 +16,12 @@
 #include <memory>
 #include <unistd.h>
 
+
 int main(int argc, char const *argv[]) {
+
+ 
+
+
   //构造配置
   std::unique_ptr<EMPlannerConfig> config = std::make_unique<EMPlannerConfig>();
 

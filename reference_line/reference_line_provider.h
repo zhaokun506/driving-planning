@@ -35,7 +35,7 @@ private:
 
   // 1.1 由全局路径转换参考线，即(x,y)->(x,y,heading,kappa)
   void RoutingPathToFrenetPath(const std::vector<MapPoint> &routing_path_points,
-                               ReferenceLine &frenet_path);
+                               ReferenceLine *frenet_path);
 
   ReferenceLine frenet_path_; //将传入的全局路由转换自然的参考线
   std::vector<MapPoint> pre_points_; //用于存储上一时刻，传入该模块的待处理点

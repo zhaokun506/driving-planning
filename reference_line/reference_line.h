@@ -16,6 +16,8 @@ class ReferenceLine {
 
   // x,y,
 public:
+  ReferenceLine() = default;
+  ~ReferenceLine() = default;
   void set_reference_points(std::vector<ReferencePoint> reference_points);
   const std::vector<ReferencePoint> reference_points() const;
   const int match_point_index() const;

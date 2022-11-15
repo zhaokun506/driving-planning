@@ -1,4 +1,5 @@
 #include "reference_line_provider.h"
+ReferenceLineProvider::ReferenceLineProvider() {}
 
 void ReferenceLineProvider::Provide(
     const std::vector<MapPoint> &routing_path_points,
@@ -7,7 +8,7 @@ void ReferenceLineProvider::Provide(
 
 {
   // 1.将全局路径转换为自然坐标系参考路径，增加heading和kappa信息
-  RoutingPathToFrenetPath(routing_path_points, frenet_path_);
+  RoutingPathToFrenetPath(routing_path_points, &frenet_path_);
   // 2.找到host在全局路径的匹配点和投影点
   MapPoint host_xy;
   std::vector<MapPoint> vct_host_xy;
@@ -47,6 +48,8 @@ void ReferenceLineProvider::FindMatchAndProjectPoint(
   auto frenet_path_points = frenet_path.reference_points();
   int size = frenet_path_points.size();
   int increase_count = 0;
+  match_points.resize(map_points.size());
+  project_points.resize(map_points.size());
 
   for (int i = 0; i < map_points.size(); i++) {
     double min_distance = DBL_MAX;
@@ -56,7 +59,9 @@ void ReferenceLineProvider::FindMatchAndProjectPoint(
       if (distance < min_distance) {
         //如果距离小于最小距离，说明距离在递减
         min_distance = distance;
+
         match_points[i].index = j;
+
         increase_count = 0;
       } else {
         //如果距离增加，则计数+1。增加此部分为了避免在小半径连续转弯的情况，自车从前一时刻到当前时刻行走了具有两个极小值得道路，
@@ -112,7 +117,7 @@ void ReferenceLineProvider::GetReferenceLine(const ReferenceLine &frenet_path,
   int len = frenet_path.reference_points().size();
   //% 匹配点后面的点太少了，不够30个
   if (host_match_point_index - 30 < 1)
-    start_index = 1;
+    start_index = 0;
   //% 匹配点前面的点太少了，不够150个
   else if (host_match_point_index + 150 > len)
     start_index = len - 180;
@@ -143,7 +148,7 @@ void ReferenceLineProvider::GetReferenceLine(const ReferenceLine &frenet_path,
 // const对象只能访问const类型的成员
 void ReferenceLineProvider::RoutingPathToFrenetPath(
     const std::vector<MapPoint> &routing_path_points,
-    ReferenceLine &frenet_path) {
+    ReferenceLine *frenet_path) {
   auto points = routing_path_points;
   int size = points.size();
   /*此部分可以通过构造2d矢量类，来统一计算，见apollo common::math::Vec2D
@@ -155,29 +160,33 @@ void ReferenceLineProvider::RoutingPathToFrenetPath(
       points_diff_fianl;
   std::vector<double> ds_final, points_heading;
   for (int i = 0; i < size - 1; i++) {
-    points_diff[i].x = points[i + 1].x - points[i].x;
-    points_diff[i].y = points[i + 1].y - points[i].y;
+    MapPoint mp;
+    mp.x = points[i + 1].x - points[i].x;
+    mp.y = points[i + 1].y - points[i].y;
+    points_diff.push_back(mp);
   }
 
   points_diff_pre = points_diff;
   points_diff_after = points_diff;
   points_diff_pre.insert(points_diff_pre.begin(), points_diff.front());
   points_diff_after.emplace_back(points_diff.back());
+
   for (int i = 0; i < size; i++) {
-    points_diff_fianl[i].x =
-        (points_diff_pre[i].x + points_diff_after[i].x) / 2;
-    points_diff_fianl[i].y =
-        (points_diff_pre[i].y + points_diff_after[i].y) / 2;
-    ds_final[i] =
-        sqrt(pow(points_diff_fianl[i].x, 2) + pow(points_diff_fianl[i].y, 2));
-    points_heading[i] = atan2(points_diff_fianl[i].y, points_diff_fianl[i].x);
+    MapPoint mp;
+    mp.x = (points_diff_pre[i].x + points_diff_after[i].x) / 2;
+    mp.y = (points_diff_pre[i].y + points_diff_after[i].y) / 2;
+    points_diff_fianl.push_back(mp);
+
+    ds_final.push_back(sqrt(pow(mp.x, 2) + pow(mp.y, 2)));
+
+    points_heading.push_back(atan2(mp.y, mp.x));
   }
 
   //求kappa
   std::vector<double> heading_diff, heading_diff_pre, heading_diff_after,
       heading_diff_final, points_kappa;
   for (int i = 0; i < size - 1; i++) {
-    heading_diff[i] = points_heading[i + 1] - points_heading[i];
+    heading_diff.push_back(points_heading[i + 1] - points_heading[i]);
   }
   heading_diff_pre = heading_diff;
   heading_diff_after = heading_diff;
@@ -185,19 +194,22 @@ void ReferenceLineProvider::RoutingPathToFrenetPath(
   heading_diff_after.emplace_back(heading_diff.back());
 
   for (int i = 0; i < size; i++) {
-    heading_diff_final[i] = (heading_diff_pre[i] + heading_diff_after[i]) / 2;
+    heading_diff_final.push_back((heading_diff_pre[i] + heading_diff_after[i]) /
+                                 2);
     //为了防止dheading出现多一个2pi的错误，假设真实的dheading较小，用sin(dheading)
     //近似dheading
-    points_kappa[i] = sin(heading_diff_final[i]) / ds_final[i];
+    points_kappa.push_back(sin(heading_diff_final[i]) / ds_final[i]);
   }
   std::vector<ReferencePoint> reference_points;
   for (int i = 0; i < size; i++) {
-    reference_points[i].x = points[i].x;
-    reference_points[i].y = points[i].y;
-    reference_points[i].heading = points_heading[i];
-    reference_points[i].heading = points_kappa[i];
+    ReferencePoint rp;
+    rp.x = points[i].x;
+    rp.y = points[i].y;
+    rp.heading = points_heading[i];
+    rp.kappa = points_kappa[i];
+    reference_points.push_back(rp);
   }
-  frenet_path_.set_reference_points(reference_points);
+  frenet_path->set_reference_points(reference_points);
 }
 
 const ReferenceLine ReferenceLineProvider::raw_reference_line() const {

@@ -62,27 +62,52 @@ std::vector<MapPoint> RoutingPath::GetRoutingPathFromCSV() {
 
 void RoutingPath::CreatePath() {
   routing_path_points_.clear();
-  //第一段
-  for (int i = 0; i < 2000; i++) {
-    MapPoint point;
-    point.x = i * 0.1;
-    point.y = 0;
+  MapPoint point;
+  point.x = 0;
+  point.y = 0;
+  routing_path_points_.push_back(point);
+  double x = 0, y = 0;
+  //第1段
+  for (int i = 0; i < 60; i++) {
+    x = x + 1;
+    y = y + 0;
+    point.x = x;
+    point.y = y;
     routing_path_points_.push_back(point);
   }
 
-  //第二段
-  for (int i = 0; i < 200; i++) {
-    MapPoint point;
-    point.x = 200;
-    point.y = i * 0.1;
+  //第2段
+  for (int i = 0; i < 20; i++) {
+    x = x;
+    y = y + 1;
+    point.x = x;
+    point.y = y;
+    routing_path_points_.push_back(point);
+  }
+  //第3段
+  for (int i = 0; i < 50; i++) {
+    x = x + 1;
+    y = y;
+    point.x = x;
+    point.y = y;
     routing_path_points_.push_back(point);
   }
 
-  //第三段
-  for (int i = 0; i < 800; i++) {
-    MapPoint point;
-    point.x = 200 + 0.1 * i;
-    point.y = 20;
+  //第4段
+  for (int i = 0; i < 20; i++) {
+    x = x;
+    y = y - 1;
+    point.x = x;
+    point.y = y;
+    routing_path_points_.push_back(point);
+  }
+
+  //第5段
+  for (int i = 0; i < 500; i++) {
+    x = x + 1;
+    y = y;
+    point.x = x;
+    point.y = y;
     routing_path_points_.push_back(point);
   }
 }

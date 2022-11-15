@@ -15,6 +15,14 @@ void ReferenceLineSmoother::Smooth(const ReferenceLine &raw_reference_line,
     raw_point2d.emplace_back(std::make_pair(point.x, point.y));
   }
   DiscretePointsSmooth(raw_point2d, &smoothed_point2d);
+  std::vector<ReferencePoint> smoothed_points;
+  for (const auto pt : smoothed_point2d) {
+    ReferencePoint rp;
+    rp.x = pt.first;
+    rp.y = pt.second;
+    smoothed_points.push_back(rp);
+  }
+  smoothed_reference_line.set_reference_points(smoothed_points);
 }
 
 //
@@ -30,7 +38,6 @@ bool ReferenceLineSmoother::DiscretePointsSmooth(
   Eigen::SparseMatrix<double> A2(2 * n, 2 * n);
   //参考线偏离代价矩阵 x'A3'A3x,单位阵
   Eigen::SparseMatrix<double> A3(2 * n, 2 * n);
-  A3.setIdentity();
 
   Eigen::SparseMatrix<double> H(2 * n, 2 * n); //必须是稀疏矩阵
   Eigen::VectorXd f = Eigen::VectorXd::Zero(2 * n);
@@ -39,19 +46,18 @@ bool ReferenceLineSmoother::DiscretePointsSmooth(
   Eigen::VectorXd ub = Eigen::VectorXd::Zero(2 * n);
   Eigen::VectorXd qp_solution = Eigen::VectorXd::Zero(2 * n);
 
-  for (int i = 0; i < 2 * n; i++) {
-    A.insert(i, i) = 1;
-  }
+  A.setIdentity();
+
   //赋值f,lb,ub;
   // MatrixXd下标从(0,0)开始,(1,2)表示第1行第2列
   for (int i = 0; i < n; i++) {
     f(2 * i) = raw_point2d[i].first;
     f(2 * i + 1) = raw_point2d[i].second;
 
-    lb(2 * i) = f(2 * i + 1) + config_.x_lower_bound;
+    lb(2 * i) = f(2 * i) + config_.x_lower_bound;
     lb(2 * i + 1) = f(2 * i + 1) + config_.y_lower_bound;
 
-    ub(2 * i) = f(2 * i + 1) + config_.x_upper_bound;
+    ub(2 * i) = f(2 * i) + config_.x_upper_bound;
     ub(2 * i + 1) = f(2 * i + 1) + config_.y_upper_bound;
   }
 
@@ -72,6 +78,8 @@ bool ReferenceLineSmoother::DiscretePointsSmooth(
     A2.insert(2 * k + 1, 2 * k + 3) = 1;
   }
 
+  A3.setIdentity();
+
   // H = 2 * (config_.weight_smooth * (A1.transpose().dot(A1)) +
   //          config_.weight_path_length * (A2.transpose().dot(A2)) +
   //          config_.weight_ref_deviation * A3);
@@ -84,7 +92,7 @@ bool ReferenceLineSmoother::DiscretePointsSmooth(
   OsqpEigen::Solver solver;
   solver.settings()->setWarmStart(true);
   solver.data()->setNumberOfVariables(2 * n);
-  solver.data()->setNumberOfConstraints(1);
+  solver.data()->setNumberOfConstraints(2 * n);
   solver.data()->setHessianMatrix(H);
   solver.data()->setGradient(f);
   solver.data()->setLinearConstraintsMatrix(A);
@@ -97,6 +105,7 @@ bool ReferenceLineSmoother::DiscretePointsSmooth(
     return 0;
   qp_solution = solver.getSolution();
 
+  (*smoothed_point2d).resize(n);
   for (int i = 0; i < n; i++) {
     (*smoothed_point2d)[i].first = qp_solution(2 * i);
     (*smoothed_point2d)[i].second = qp_solution(2 * i + 1);

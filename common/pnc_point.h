@@ -15,10 +15,10 @@ public:
 class ReferencePoint : public MapPoint {
 public:
   /* data */
-  double index = 0;
-  double heading = 0; //方向角
-  double kappa = 0;   //曲率
-  double dkappa = 0;  //曲率的导数
+  double index;
+  double heading; //方向角
+  double kappa;   //曲率
+  double dkappa;  //曲率的导数
 };
 
 class TrajectoryPoint : public ReferencePoint {

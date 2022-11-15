@@ -41,6 +41,7 @@ void PerceptionObstacle::AddStaticObstacle(int id, double init_x, double init_y,
   static_obstacles_.push_back(obs);
 }
 
-PerceptionObstacle::PerceptionObstacle(/* args */) {}
-
-PerceptionObstacle::~PerceptionObstacle() {}
+PerceptionObstacle::PerceptionObstacle() {
+  static_obstacles_.clear();
+  dynamic_obstacles_.clear();
+}
