@@ -2,31 +2,32 @@
 
 PathTimeGraph::PathTimeGraph(const ReferenceLine &reference_line,
                              const ReferencePoint &host_project_point,
-                             EMPlannerConfig emplaner_conf) {
+                             const EMPlannerConfig &emplaner_conf) {
   reference_line_ = reference_line;
   host_project_point_ = host_project_point;
   config_ = emplaner_conf;
   //初始化根据参考线，以自车的投影点为原点，生产sl
-  InitSAxis(reference_line, host_project_point, sl_reference_line_)
+  InitSAxis(reference_line, host_project_point, &sl_reference_line_);
 }
+
 void PathTimeGraph::InitSAxis(const ReferenceLine &reference_line,
                               const ReferencePoint &host_project_point,
-                              std::vector<SLPoint> &sl_reference_line) {
+                              std::vector<SLPoint> *sl_reference_line) {
 
   //初始化根据参考线，以自车的投影点为原点，生产sl
   auto reference_points = reference_line.reference_points();
   int len = reference_points.size();
   // 首先计算以path起点为坐标原点,各个点的s[i]
-  sl_reference_line[0].s = 0;
+  (*sl_reference_line)[0].s = 0;
   for (int i = 1; i < len - 1; i++) {
     (*sl_reference_line)[i].s =
         sqrt(pow(reference_points[i].x - reference_points[i - 1].x, 2) +
              pow(reference_points[i].y - reference_points[i - 1].y, 2)) +
-        sl_reference_line[i - 1].s;
+        (*sl_reference_line)[i - 1].s;
   }
   //再计算以轨迹起点到frenet_path的坐标原点的弧长，记为s0，再用s[i] - s0
   //就是最终的结果
-  double s_host_match = sl_reference_line[host_project_point.index].s;
+  double s_host_match = (*sl_reference_line)[host_project_point.index].s;
 
   ReferencePoint host_match_point = reference_points[host_project_point.index];
   ReferencePoint host_match_point_next =
@@ -48,7 +49,7 @@ void PathTimeGraph::InitSAxis(const ReferenceLine &reference_line,
                              pow(vector_project_match.second, 2));
 
   for (int i = 0; i < len; i++) {
-    sl_reference_line[i].s = sl_reference_line[i].s - s0;
+    (*sl_reference_line)[i].s = (*sl_reference_line)[i].s - s0;
   }
 }
 
@@ -58,13 +59,19 @@ void PathTimeGraph::SetHostSl(const LocalizationInfo host_local) {
   //坐标转换
   std::vector<TrajectoryPoint> host_vec;
   host_vec.emplace_back(host_local);
+
+  std::vector<ReferencePoint> host_match_vec;
+  host_match_vec.emplace_back(host_match_point_);
+
   std::vector<ReferencePoint> host_project_vec;
   host_project_vec.emplace_back(host_project_point_);
-  std::vector<SLPoint> *points_fcs;
+
+  std::vector<SLPoint> points_fcs;
   Cartesian2Frenet(reference_line_, sl_reference_line_, host_vec,
-                   host_project_vec, points_fcs);
-  sl_host_ = points_fcs->at(0);
+                   host_match_vec, host_project_vec, points_fcs);
+  sl_host_ = points_fcs.front();
 }
+
 void PathTimeGraph::SetStaticObstaclesSl(
     const std::vector<ObstacleInfo> static_obstacles) {
   std::vector<MapPoint> map_points;
@@ -200,7 +207,7 @@ void PathTimeGraph::Frenet2Cartesian(
     const ReferenceLine &reference_line,           //参考线
     const std::vector<SLPoint> &sl_reference_line, //参考线的sl值
     const std::vector<SLPoint> &points_fcs,        //待转换的点
-    std::vector<ReferencePoint> &points_wcs) {}
+    std::vector<ReferencePoint> *points_wcs) {}
 
 /*
 注：形参是声明的引用，注意这个引用没有初始化，在调用函数时实现了初始化，做到了真正意义变量传递
@@ -216,7 +223,7 @@ void PathTimeGraph::PathDynamicPlanning() {
   int cols = sample_points_[0].size();
   // 1.计算起点到第一列所有点的cost
   for (int i = 0; i < rows; i++) {
-    CalcPathCost(sl_host_, sample_points_[i][0], emplaner_conf_);
+    CalcPathCost(sl_host_, sample_points_[i][0]);
   }
 
   // 2.动态规划主结构
@@ -229,7 +236,7 @@ void PathTimeGraph::PathDynamicPlanning() {
         //计算前一列每一点到当前点的cost，结合前一列点的cost2start，获得起点到当前点的cost，通过比较获取最小值
         double cost =
             sample_points_[k][j - 1].cost2start +
-            CalcPathCost(sample_points_[k][j - 1], sample_points_[k][j], conf);
+            CalcPathCost(sample_points_[k][j - 1], sample_points_[k][j]);
         if (cost < sample_points_[k][j].cost2start) {
           sample_points_[k][j].cost2start = cost;
           sample_points_[k][j].pre_mincost_row = k; //记录最优路径上一列的行号
@@ -258,8 +265,7 @@ void PathTimeGraph::PathDynamicPlanning() {
   dp_path_points_ = dp_path_points; //赋值私有变量
 }
 
-double PathTimeGraph::CalcPathCost(SLPoint point_satrt, SLPoint point_end,
-                                   EMPlannerConfig conf) {
+double PathTimeGraph::CalcPathCost(SLPoint point_satrt, SLPoint point_end) {
   //计算两点之间五次多项式连接的代价
   // 1.计算五次多项式系数
   std::vector<double> qc;
@@ -293,16 +299,16 @@ double PathTimeGraph::CalcPathCost(SLPoint point_satrt, SLPoint point_end,
         60 * qc[5] * pow(quintic_path_points[i].s, 2);
     //平滑代价
     cost_smooth = cost_smooth +
-                  conf.dp_cost_dl * pow(quintic_path_points[i].dl_ds, 2) +
-                  conf.dp_cost_ddl * pow(quintic_path_points[i].ddl_ds, 2) +
-                  conf.dp_cost_dddl * pow(quintic_path_points[i].dddl_ds, 2);
+                  config_.dp_cost_dl * pow(quintic_path_points[i].dl_ds, 2) +
+                  config_.dp_cost_ddl * pow(quintic_path_points[i].ddl_ds, 2) +
+                  config_.dp_cost_dddl * pow(quintic_path_points[i].dddl_ds, 2);
     //如果ddl或者切向角过大，则增加cost
     if (abs(quintic_path_points[i].ddl_ds) > 0.5 ||
         abs(atan(quintic_path_points[i].dl_ds)) > 0.4 * 3.1415) {
       cost_smooth = cost_smooth + 1e7;
     }
     //参考线代价
-    cost_ref = conf.dp_cost_ref * pow(quintic_path_points[i].l, 2);
+    cost_ref = config_.dp_cost_ref * pow(quintic_path_points[i].l, 2);
 
     //碰撞代价,这里做了非常简化的质点模型，认为障碍物就是一个点
     //求该点到障碍物的最小距离
@@ -315,7 +321,7 @@ double PathTimeGraph::CalcPathCost(SLPoint point_satrt, SLPoint point_end,
       min_d = std::min(min_d, square_d);
     }
     cost_collision =
-        cost_collision + conf.dp_cost_collision * pow(10, -min_d / 3);
+        cost_collision + config_.dp_cost_collision * pow(10, -min_d / 3);
     //此处忽略左右判断？？？
   }
   return cost_smooth + cost_ref + cost_collision;
@@ -475,11 +481,11 @@ int FindNearIndex(const std::vector<SLPoint> &dp_path_points_dense,
     return index;
 }
 
-void PathTimeGraph::PathQuadraticProgramming() {
+bool PathTimeGraph::PathQuadraticProgramming() {
   /*
   % 0.5*x'Hx + f'*x = min
-  % subject to A*x <= b
-  %            Aeq*x = beq
+  % subject to A*x <= b 凸空间约束
+  %            Aeq*x = beq 加加速度约束
   %            lb <= x <= ub;
   % 输入：l_min l_max 点的凸空间
   % w_cost_l 参考线代价
@@ -500,17 +506,19 @@ void PathTimeGraph::PathQuadraticProgramming() {
   double d1 = 3; //汽车中心到后前边的距离
   double d2 = 3;
   double w = 1.67;
+
   //输出初始化
-  Eigen::MatrixXd qp_path_l = Eigen::MatrixXd::Zero(n, 1);
-  Eigen::MatrixXd qp_path_dl = Eigen::MatrixXd::Zero(n, 1);
-  Eigen::MatrixXd qp_path_ddl = Eigen::MatrixXd::Zero(n, 1);
-  Eigen::MatrixXd qp_path_s = Eigen::MatrixXd::Zero(n, 1);
+  Eigen::VectorXd qp_path_l = Eigen::VectorXd::Zero(n, 1);
+  Eigen::VectorXd qp_path_dl = Eigen::VectorXd::Zero(n, 1);
+  Eigen::VectorXd qp_path_ddl = Eigen::VectorXd::Zero(n, 1);
+  Eigen::VectorXd qp_path_s = Eigen::VectorXd::Zero(n, 1);
+
   // Hissen矩阵初始化
-  Eigen::MatrixXd H = Eigen::MatrixXd::Zero(3 * n, 3 * n);
-  Eigen::MatrixXd H_L = Eigen::MatrixXd::Zero(3 * n, 3 * n);
-  Eigen::MatrixXd H_DL = Eigen::MatrixXd::Zero(3 * n, 3 * n);
-  Eigen::MatrixXd H_DDL = Eigen::MatrixXd::Zero(3 * n, 3 * n);
-  Eigen::MatrixXd H_DDDL = Eigen::MatrixXd::Zero(3 * n, 3 * n);
+  Eigen::SparseMatrix<double> H(3 * n, 3 * n);
+  Eigen::SparseMatrix<double> H_L(3 * n, 3 * n);
+  Eigen::SparseMatrix<double> H_DL(3 * n, 3 * n);
+  Eigen::SparseMatrix<double> H_DDL(3 * n, 3 * n);
+  Eigen::SparseMatrix<double> H_DDDL(3 * n, 3 * n);
 
   Eigen::MatrixXd H_CENTRE = Eigen::MatrixXd::Zero(3 * n, 3 * n);
   Eigen::MatrixXd H_L_END = Eigen::MatrixXd::Zero(3 * n, 3 * n);
@@ -518,39 +526,48 @@ void PathTimeGraph::PathQuadraticProgramming() {
   Eigen::MatrixXd H_DDL_END = Eigen::MatrixXd::Zero(n - 1, 3 * n);
 
   // grident矩阵 f
-  Eigen::MatrixXd f = Eigen::MatrixXd::Zero(3 * n, 1);
+  Eigen::VectorXd f = Eigen::VectorXd::Zero(3 * n);
 
   //不等式约束  A*x <= b
-  Eigen::MatrixXd A = Eigen::MatrixXd::Zero(8 * n, 3 * n);
-  Eigen::MatrixXd b = Eigen::MatrixXd::Zero(8 * n, 1);
+  Eigen::SparseMatrix<double> A(8 * n, 3 * n);
+  Eigen::VectorXd b = Eigen::VectorXd::Zero(8 * n);
 
   //等式约束Aeq*x = beq
-  Eigen::MatrixXd Aeq = Eigen::MatrixXd::Zero(2 * n - 2, 3 * n);
-  Eigen::MatrixXd beq = Eigen::MatrixXd::Zero(2 * n - 2, 1);
+  Eigen::SparseMatrix<double> Aeq(2 * n - 2, 3 * n);
+  Eigen::VectorXd beq = Eigen::VectorXd::Zero(2 * n - 2);
 
   // lb ub初始化 lb <= x <= ub;
-  Eigen::MatrixXd A_lu = Eigen::MatrixXd::Identity(3 * n, 3 * n);
-  Eigen::MatrixXd lb = Eigen::MatrixXd::Ones(3 * n, 1) * -DBL_MAX;
-  Eigen::MatrixXd ub = Eigen::MatrixXd::Ones(3 * n, 1) * DBL_MAX;
-
-  Eigen::MatrixXd A_merge(8 * n + 2 * n - 2 + 3 * n, 3 * n);
-  Eigen::MatrixXd lb_merge(8 * n + 2 * n - 2 + 3 * n, 1);
-  Eigen::MatrixXd ub_merge(8 * n + 2 * n - 2 + 3 * n, 1);
+  Eigen::SparseMatrix<double> A_lu(3 * n, 3 * n);
+  A_lu.setIdentity();
+  Eigen::VectorXd lb = Eigen::VectorXd::Ones(3 * n) * -DBL_MAX;
+  Eigen::VectorXd ub = Eigen::VectorXd::Ones(3 * n) * DBL_MAX;
+  //行优先只能进行列操作
+  Eigen::SparseMatrix<double> A_merge(8 * n + 2 * n - 2 + 3 * n, 3 * n);
+  Eigen::VectorXd lb_merge(8 * n + 2 * n - 2 + 3 * n);
+  Eigen::VectorXd ub_merge(8 * n + 2 * n - 2 + 3 * n);
   //---------------------------------------------H
   //生成H_L,H_DL,H_DDL,H_CENTRE
   // matlab矩阵索引从1开始，eigen矩阵索引从
   for (int i = 0; i < n; i++) {
-    H_L(3 * i, 3 * i) = 1;
-    H_DL(3 * i + 1, 3 * i + 1) = 1;
-    H_DDL(3 * i + 2, 3 * i + 2) = 1;
+    H_L.insert(3 * i, 3 * i) = 1;
+    H_DL.insert(3 * i + 1, 3 * i + 1) = 1;
+    H_DDL.insert(3 * i + 2, 3 * i + 2) = 1;
   }
   H_CENTRE = H_L;
   //生成H_DDDL
-  Eigen::MatrixXd H_dddl_sub = {0, 0, 1, 0, 0, -1};
+  Eigen::SparseMatrix<double> H_dddl_sub(1, 6);
+  H_dddl_sub.insert(0, 2) = 1;
+  H_dddl_sub.insert(0, 5) = -1;
+
   for (int i = 0; i < n - 1; i++) {
     int row = i;
     int col = 3 * i;
-    H_DDDL.block(row, col, 1, 6) = H_dddl_sub; //设置矩阵的块
+    //关于读操作，稀疏矩阵支持类似于密集矩阵相同的接口来访问块，列，行。
+    //但由于性能的原因，稀疏子矩阵的写操作非常受限。当前仅列（列）优先稀疏矩阵的连续列（或行）可写。此外，在编译时必须知道这些信息。
+    //  H_DDDL.block(row, col, 1, 6) = H_dddl_sub; //设置矩阵的块
+    // H_DDDL.middleRows(row, col) = H_dddl_sub;
+    H_DDDL.insert(row, col + 2) = 1;
+    H_DDDL.insert(row, col + 5) = -1;
   }
 
   //% 生成H_L_END H_DL_END H_DDL_END
@@ -567,6 +584,7 @@ void PathTimeGraph::PathQuadraticProgramming() {
       config_.qp_cost_end_dl * (H_DL_END.transpose() * H_DL_END) +
       config_.qp_cost_end_ddl * (H_DDL_END.transpose() * H_DDL_END);
   H = 2 * H;
+
   //--------------------------------------生成f
   auto centre_line = 0.5 * (l_min_ + l_max_); //此时centre line 还是60个点
   for (int i = 0; i < n; i++) {
@@ -586,20 +604,32 @@ void PathTimeGraph::PathQuadraticProgramming() {
   // Ax<=b
   //生成A
   Eigen::MatrixXd A_sub(8, 3);
+
   A_sub << 1, d1, 0, 1, d1, 0, 1, -d2, 0, 1, -d2, 0, -1, -d1, 0, -1, -d1, 0, -1,
       d2, 0, -1, d2, 0;
+
+  double index_start = 0;
   for (int i = 0; i < n - 1; i++) {
     int row = 8 * i;
     int col = 3 * i;
-    A.block(row, col, 8, 3) = A_sub;
+    //   A.block(row, col, 8, 3) = A_sub;
+    A_merge.insert(row + 0, col + 0) = 1;
+    A_merge.insert(row + 1, col + 0) = 1;
+    A_merge.insert(row + 2, col + 0) = 1;
+    A_merge.insert(row + 3, col + 0) = 1;
+    A_merge.insert(row + 0, col + 1) = d1;
+    A_merge.insert(row + 1, col + 1) = d1;
+    A_merge.insert(row + 2, col + 1) = -d2;
+    A_merge.insert(row + 3, col + 1) = -d2;
   }
+
   //生成b
   int front_index = ceil(d1 / ds);
   int back_index = ceil(d2 / ds);
   for (int i = 0; i < n; i++) {
     int index1 = std::min(3 * i + front_index, n); //车头索引
     int index2 = std::max(3 * i + back_index, 0);  //车位索引
-    Eigen::MatrixXd b_sub(8, 1);
+    Eigen::VectorXd b_sub(8);
     b_sub << l_max_(index1) - w / 2, l_max_(index1) + w / 2,
         l_max_(index2) - w / 2, l_max_(index2) + w / 2, -l_min_(index1) + w / 2,
         -l_min_(index1) - w / 2, -l_min_(index2) + w / 2,
@@ -609,13 +639,30 @@ void PathTimeGraph::PathQuadraticProgramming() {
 
   // Aeqx<=beq
   //生成Aeq
-  Eigen::MatrixXd A_sub(2, 6);
-  A_sub << 1, ds, pow(ds, 2 / 3), -1, 0, pow(ds, 2 / 6), 0, 1, ds / 2, 0, -1,
+  Eigen::MatrixXd Aeq_sub(2, 6);
+  Aeq_sub << 1, ds, pow(ds, 2) / 3, -1, 0, pow(ds, 2) / 6, 0, 1, ds / 2, 0, -1,
       ds / 2;
+
+  index_start = 8 * n;
   for (int i = 0; i < n - 1; i++) {
     int row = 2 * i;
     int col = 3 * i;
-    Aeq.block(row, col, 2, 6) = A_sub;
+    // Aeq.block(row, col, 2, 6) = A_sub;
+    A_merge.insert(index_start + row, col) = 1;
+    A_merge.insert(index_start + row, col + 1) = ds;
+    A_merge.insert(index_start + row, col + 2) = pow(ds, 2) / 3;
+    A_merge.insert(index_start + row, col + 3) = -1;
+    A_merge.insert(index_start + row, col + 5) = pow(ds, 2) / 6;
+
+    A_merge.insert(index_start + row, col + 1) = 1;
+    A_merge.insert(index_start + row, col + 2) = ds / 2;
+    A_merge.insert(index_start + row, col + 4) = -1;
+    A_merge.insert(index_start + row, col + 5) = ds / 2;
+  }
+  // 3n*3n单位矩阵，起点约束
+  index_start = 8 * n + 2 * n - 2;
+  for (int i = 0; i < 3 * n; i++) {
+    A_merge.insert(index_start + i, i) = 1;
   }
 
   //% 生成 lb ub 主要是对规划起点做约束
@@ -640,9 +687,15 @@ void PathTimeGraph::PathQuadraticProgramming() {
   Eigen::MatrixXd A_merge(8 * n + 2 * n - 2 + 3 * n, 3 * n);
   Eigen::MatrixXd lb_merge(8 * n + 2 * n - 2 + 3 * n, 1);
   Eigen::MatrixXd ub_merge(8 * n + 2 * n - 2 + 3 * n, 1);*/
-  A_merge.block(0, 0, 8 * n, 3 * n) = A;
-  A_merge.block(8 * n, 0, 2 * n - 2, 3 * n) = Aeq;
-  A_merge.block(8 * n + 2 * n - 2, 0, 3 * n, 3 * n) = A_lu;
+
+  // A_merge.topRows(8 * n) = A;
+  // A_merge.middleRows(8 * n + 1, 8 * n + 2 * n - 2) = Aeq;
+  // A_merge.bottomRows(8 * n + 2 * n - 2) = A_lu;
+
+  // A_merge_tp.leftCols(8 * n) = A.transpose();
+  // // A_merge_tp.middleRows(8 * n + 1, 8 * n + 2 * n - 2) = Aeq.transpose();
+  // A_merge_tp.rightCols(8 * n + 2 * n - 2 + 1) = A_lu.transpose();
+  // A_merge = A_merge_tp.transpose();
 
   ub_merge.block(0, 0, 8 * n, 1) = b;
   ub_merge.block(8 * n, 0, 2 * n - 2, 1) = beq;
@@ -666,7 +719,7 @@ void PathTimeGraph::PathQuadraticProgramming() {
   solver.data()->setLowerBound(lb_merge);
   solver.data()->setUpperBound(ub_merge);
 
-  if (!solver.initSolve())
+  if (!solver.initSolver())
     return 0;
   if (!solver.solve())
     return 0;
@@ -675,8 +728,8 @@ void PathTimeGraph::PathQuadraticProgramming() {
   qp_path_points_ = dp_path_points_dense_;
   for (int i = 0; i < n; i++) {
     qp_path_points_[i].l = qp_solution(3 * i);
-    qp_path_points_[i].dl = qp_solution(3 * i + 1);
-    qp_path_points_[i].ddl = qp_solution(3 * i + 2);
+    qp_path_points_[i].dl_ds = qp_solution(3 * i + 1);
+    qp_path_points_[i].ddl_ds = qp_solution(3 * i + 2);
   }
 }
 void PathTimeGraph::QpPathInterpolation(int num, double ds) {
@@ -684,7 +737,7 @@ void PathTimeGraph::QpPathInterpolation(int num, double ds) {
 
   qp_path_points_dense[0] = qp_path_points_[0];
   int n_init = qp_path_points_.size();
-  double ds = qp_path_points_.back().s - qp_path_points_.front().s / (num - 1);
+  ds = qp_path_points_.back().s - qp_path_points_.front().s / (num - 1);
   int index = 0;
   for (int i = 1; i < num; i++) {
     double s = qp_path_points_.front().s + i * ds;
@@ -698,7 +751,7 @@ void PathTimeGraph::QpPathInterpolation(int num, double ds) {
     // qp_path_s(index)，所以x对应的前一个s的编号是index - 1 后一个编号是index
     int pre = index - 1;
     int cur = index;
-    double delta_s = s - qp_path_points_[pre];
+    double delta_s = s - qp_path_points_[pre].s;
     qp_path_points_dense[i].l =
         qp_path_points_[pre].l + qp_path_points_[pre].dl_ds * delta_s +
         (1 / 3) * qp_path_points_[pre].ddl_ds * pow(delta_s, 2) +
@@ -709,8 +762,8 @@ void PathTimeGraph::QpPathInterpolation(int num, double ds) {
         0.5 * qp_path_points_[cur].ddl_ds * delta_s;
     qp_path_points_dense[i].ddl_ds =
         qp_path_points_[pre].ddl_ds +
-        (qp_path_points_[cur].ddl_ds[cur] - qp_path_points_[pre].ddl_ds) *
-            detal_s / (qp_path_points_[cur].s - qp_path_points_[pre].s);
+        (qp_path_points_[cur].ddl_ds - qp_path_points_[pre].ddl_ds) * ds /
+            (qp_path_points_[cur].s - qp_path_points_[pre].s);
     // % 因为此时x的后一个编号是index 必有x < qp_path_s(index), 在下一个循环中x
     // = x + ds
     //也未必大于 % qp_path_s(index)，这样就进入不了while循环，所以index
@@ -721,11 +774,11 @@ void PathTimeGraph::QpPathInterpolation(int num, double ds) {
 
 void PathTimeGraph::GeneratePlaningPath() // frenet
 {
-  std::vector<ReferenceLineProvider> planning_path_points;
+  std::vector<ReferencePoint> planning_path_points;
   for (int i = 0; i < qp_path_points_dense_.size(); i++) {
     ReferencePoint project_point;
-    CalcProjPoint(qp_path_points_dense_[i], sl_reference_line_, reference_line_,
-                  project_point);
+    CalcProjPoint(qp_path_points_dense_[i], sl_reference_line_,
+                  reference_line_.reference_points(), project_point);
     Eigen::Vector2d nor(-sin(project_point.heading),
                         cos(project_point.heading));
     Eigen::Vector2d vector_proj(project_point.x, project_point.y);
@@ -751,10 +804,10 @@ void PathTimeGraph::GeneratePlaningPath() // frenet
   planning_path_.set_reference_points(planning_path_points);
 }
 
-void PathTimeGraph::CalcProjPoint(const SLPoint sl_point,
-                                  std::vector<SLPoint> sl_reference_line,
-                                  const ReferenceLine reference_line,
-                                  ReferencePoint &project_point) {
+void PathTimeGraph::CalcProjPoint(
+    const SLPoint sl_point, std::vector<SLPoint> sl_reference_line,
+    const std::vector<ReferencePoint> reference_line,
+    ReferencePoint &project_point) {
   //   该函数将计算在frenet坐标系下，点(s, l)
   //   在frenet坐标轴的投影的直角坐标(proj_x, proj_y, proj_heading, proj_kappa)'
   // 1.寻找匹配点

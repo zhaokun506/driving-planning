@@ -50,6 +50,9 @@ int main(int argc, char const *argv[]) {
                                    pre_reference_line, reference_line);
   std::unique_ptr<Plot> plot = std::make_unique<Plot>();
 
+
+  
+
   plot->PlotRoutingPath(routing_path_points, "k");
   plot->PlotReferenceLine(reference_line, "y");
 

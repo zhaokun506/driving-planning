@@ -2,13 +2,14 @@
 此类的功能：
 通过动态规划和二次规划方法输出轨迹
 */
-#include "EMPlanner_config.h"
-#include "localization_estimate.h"
-#include "perception_obstacle.h"
-#include "reference_line.h"
+#pragma once
+
+#include "config/EMPlanner_config.h"
+#include "localization/localization_estimate.h"
+#include "perception/perception_obstacle.h"
+#include "reference_line/reference_line.h"
 #include "trajectory.h"
 #include <memory>
-
 
 #include "EMPlanner/path_time_graph.h"
 #include "EMPlanner/speed_time_graph.h"
@@ -18,19 +19,19 @@ public:
   EMPlanner(const EMPlannerConfig &conf);
   ~EMPlanner();
 
-  void Plan(const unit64_t current_time,                       //当前时间
-            const TrajectoryPoint &planning_init_point,        //规划起点
-            const ReferenceLine &reference_line,               //参考线
-            const LocalizationEstimate &localization,          //定位信息
-            const PerceptionObstacle &obstacle,                //障碍物信息
-            Trajectory &trajectory,                            //输出轨迹
-            std::vector<ReferencePoint> xy_virtual_obstacles); //虚拟障碍物
+  void Plan(const uint64_t current_time,                     //当前时间
+            const TrajectoryPoint &planning_init_point,      //规划起点
+            const ReferenceLine &reference_line,             //参考线
+            const LocalizationInfo &localization,            //定位信息
+            const std::vector<ObstacleInfo> &obstacle,       //障碍物信息
+            Trajectory *trajectory,                          //输出轨迹
+            std::vector<ObstacleInfo> xy_virtual_obstacles); //虚拟障碍物
 
   // 1.计算规划起点
   void CalPlaningStartPoint(const Trajectory &pre_traj,
                             const LocalizationInfo &local_info,
-                            TrajectoryPoint &start_plan_point,
-                            Trajectory &stitch_traj);
+                            TrajectoryPoint *start_plan_point,
+                            Trajectory *stitch_traj);
 
   void StitchTrajectory(const Trajectory &cur_traj,
                         const Trajectory &stitch_traj, Trajectory &final_traj);
@@ -57,8 +58,8 @@ private:
 
   Trajectory pre_trajectory_;
   Trajectory trajectory_;
-  PathTimeGraph SLGraph_;
-  PathTimeGraph STGraph_;
+  std::unique_ptr<PathTimeGraph> sl_graph_;
+  std::unique_ptr<SpeedTimeGraph> st_graph_;
 
   // 1.参考线
   // 2.车辆的sl

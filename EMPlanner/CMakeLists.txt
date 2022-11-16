@@ -1,6 +1,6 @@
 aux_source_directory(. EMPLANNER_SRC)
 
-add_library(EMPlanner trajectory.cc)
+add_library(EMPlanner ${EMPLANNER_SRC} )
 
 message(工程目录是：${PROJECT_SOURCE_DIR})
 

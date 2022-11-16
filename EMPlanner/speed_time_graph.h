@@ -1,3 +1,5 @@
+#pragma once
+
 //此类用于速度规划功能模块的实现
 
 #include "OsqpEigen/OsqpEigen.h"
@@ -6,11 +8,10 @@
 #include <float.h>
 #include <vector>
 
-#include "EMPlanner_config.h"
-#include "localization_estimate.h"
-#include "perception_obstacle.h"
-#include "reference_line.h"
-#include "reference_line_provider.h"
+#include "config/EMPlanner_config.h"
+#include "localization/localization_estimate.h"
+#include "perception/perception_obstacle.h"
+#include "reference_line/reference_line_provider.h"
 
 #include "path_time_graph.h"
 
@@ -46,19 +47,19 @@ public:
   // 2.计算障碍物的ST位置
   void SetDynamicObstaclesSL(const std::vector<ObstacleInfo> dynamic_obstacles);
 
-  void GenerateSTGraph(const std::vector<ObstacleInfo> dynamic_obstacles);
+  void GenerateSTGraph();
   // 3.采样
   void CreateSmaplePoint(int row, int col);
   // 4.动态规划
   void SpeedDynamicPlanning();
   double CalcDpCost(STPoint &point_s, STPoint &point_e);
-  double CalcObsCost(STPoint &point_s, STPoint &point_e);
+  double CalcObsCost(const STPoint &point_s, const STPoint &point_e);
   double CalcCollisionCost(double w_cost_obs, double min_dis);
 
   // 5.二次规划
   void GenerateCovexSpace();
   int FindDpMatchIndex(double t);
-  void SpeedQuadraticProgramming();
+  bool SpeedQuadraticProgramming();
   // 6.st加密
   void SpeedQpInterpolation(int interpolation_num);
 
@@ -66,7 +67,7 @@ public:
   void PathAndSpeedMerge(int n, double cur_t);
 
   const Trajectory trajectory() const;
-  const std::vector<ReferencePoint>
+  const std::vector<ObstacleInfo>
   xy_virtual_obstacles() const; //虚拟障碍物的xy坐标
 
 private:

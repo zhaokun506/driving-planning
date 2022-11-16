@@ -1,3 +1,5 @@
+#pragma once
+
 /*此类的功能主要为EMPlanner提供参考线*/
 #include "reference_line/reference_line_smoother.h"
 //#include "routing/routing_path.h"

@@ -48,3 +48,27 @@ public:
 class LocalizationInfo : public TrajectoryPoint {
 public:
 };
+
+// SL图点坐标
+class SLPoint {
+private:
+  /* data */
+public:
+  SLPoint();
+  ~SLPoint();
+
+  int index; //对应参考线的索引
+  double s;
+  double ds_dt;
+  double dds_dt;
+  double l;
+  double dl_dt;
+  double ddl_dt;
+  double dddl_dt;
+  double dl_ds;
+  double ddl_ds;
+  double dddl_ds;
+
+  double cost2start; //起点到该点的cost  这些是对于采样点来说的，其他的用不上
+  int pre_mincost_row; //最小cost前一列的行号
+};
