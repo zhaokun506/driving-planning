@@ -27,6 +27,8 @@
 参考线平滑结果：
 ![参考系平滑](https://user-images.githubusercontent.com/54465004/201812152-533bb555-c0a2-46b2-8369-432a21c60b68.png)
 
+路径动态规划结果
+
 ![动态规划](https://user-images.githubusercontent.com/54465004/203461369-5cb9a003-e230-4e92-abc0-37339fec10c6.png)
 
 
