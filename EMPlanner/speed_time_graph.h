@@ -1,44 +1,27 @@
 #pragma once
 
 //此类用于速度规划功能模块的实现
+#pragma once
 
 #include "OsqpEigen/OsqpEigen.h"
+#include "config/EMPlanner_config.h"
 #include "eigen3/Eigen/Eigen"
+#include "localization/localization_estimate.h"
+#include "path_time_graph.h"
+#include "perception/perception_obstacle.h"
+#include "reference_line/reference_line_provider.h"
 #include <algorithm>
 #include <float.h>
 #include <vector>
 
-#include "config/EMPlanner_config.h"
-#include "localization/localization_estimate.h"
-#include "perception/perception_obstacle.h"
-#include "reference_line/reference_line_provider.h"
-
-#include "path_time_graph.h"
 
 #include "trajectory.h"
-
-class STPoint {
-public:
-  double t;
-  double s;
-  double ds_dt;
-  double dds_dt;
-
-  double cost2start;
-  double pre_mincost_row;
-};
-
-class STLine {
-public:
-  STPoint left_point;
-  STPoint right_point;
-};
 
 class SpeedTimeGraph {
 public:
   SpeedTimeGraph(ReferenceLine planning_path,
                  EMPlannerConfig emplaner_conf); //传入规划好的路径
-  ~SpeedTimeGraph();
+  ~SpeedTimeGraph() = default;
   // 1.基于规划的轨迹，初始化坐标轴
   void InitSAxis(const ReferenceLine planning_path);
 

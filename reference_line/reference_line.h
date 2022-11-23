@@ -19,13 +19,20 @@ public:
   ReferenceLine() = default;
   ~ReferenceLine() = default;
   void set_reference_points(std::vector<ReferencePoint> reference_points);
+  void set_match_point_index(int index);
+  void set_host_match_point(ReferencePoint host_match_point);
+  void set_host_project_point(ReferencePoint host_project_point);
+
   const std::vector<ReferencePoint> reference_points() const;
   const int match_point_index() const;
-  void set_match_point_index(int index);
+  const ReferencePoint host_project_point() const;
+  const ReferencePoint host_match_point() const;
 
 private:
   std::vector<ReferencePoint> reference_points_; //参考点类
   int match_point_index_;                        //自车匹配点索引
+  ReferencePoint host_project_point_;
+  ReferencePoint host_match_point_;
 };
 
 /*C++中 public，protected， private 访问标号小结

@@ -17,7 +17,7 @@
 class EMPlanner {
 public:
   EMPlanner(const EMPlannerConfig &conf);
-  ~EMPlanner();
+  ~EMPlanner() = default;
 
   void Plan(const uint64_t current_time,                     //当前时间
             const TrajectoryPoint &planning_init_point,      //规划起点
@@ -53,13 +53,17 @@ public:
    */
   // 1.dp_pt_graph包含参考线、自车位置sl、障碍物位置sl；采样行和列，
 
+  // const std::unique_ptr<PathTimeGraph> sl_graph() const;
+  // const std::unique_ptr<SpeedTimeGraph> st_graph() const;
+
+  std::unique_ptr<PathTimeGraph> sl_graph_;
+  std::unique_ptr<SpeedTimeGraph> st_graph_;
+
 private:
   EMPlannerConfig config_;
 
   Trajectory pre_trajectory_;
   Trajectory trajectory_;
-  std::unique_ptr<PathTimeGraph> sl_graph_;
-  std::unique_ptr<SpeedTimeGraph> st_graph_;
 
   // 1.参考线
   // 2.车辆的sl

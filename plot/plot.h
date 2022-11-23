@@ -16,4 +16,9 @@ public:
   void PlotReferenceLine(ReferenceLine reference_line,
                          const std::string &color);
   void PlotTrajetory(Trajectory trajectory, const std::string &color);
+
+  void PlotSLPath(std::vector<SLPoint> sl_path_points,
+                  const std::string &color);
+
+  void PlotObs(ObstacleInfo obs, const std::string &color);
 };

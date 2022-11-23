@@ -12,16 +12,14 @@
 #include "perception/perception_obstacle.h"
 #include "reference_line/reference_line_provider.h"
 
-
 class PathTimeGraph {
 private:
   /* data */
 public:
   // 1.初始化以参考线和车辆位置信息构建，sl坐标系。对应index2s
   PathTimeGraph(const ReferenceLine &reference_line,
-                const ReferencePoint &host_project_point,
                 const EMPlannerConfig &emplaner_conf);
-  ~PathTimeGraph();
+  ~PathTimeGraph() = default;
 
   //将计算vector<point>的sl
   // 1.计算投影点
@@ -47,23 +45,26 @@ public:
   // 1.根据参考线和自车投影点生成s轴
   // 公用函数其他模块也可以调用。不能使用类内的相关变量
   void InitSAxis(const ReferenceLine &reference_line,
-                 const ReferencePoint &host_project_point,
                  std::vector<SLPoint> *sl_reference_line);
 
   // 2.自车sl，记录自车位置。自车投影
-  void SetHostSl(const LocalizationInfo host_local);
+  void SetStartPointSl(TrajectoryPoint plan_start_point); //存在问题
   // 3.障碍物sl，记录障碍物位置。障碍物投影
-  void SetStaticObstaclesSl(const std::vector<ObstacleInfo> static_obstacles);
+  void SetStaticObstaclesSl(
+      const std::vector<ObstacleInfo> static_obstacles); //存在问题
 
   // 4.dp主算法相关生成采样点
   void CreateSamplingPoint(const int row, const int col, const double sample_s,
-                           const double sample_l); //对SamplePoints进行操作
+                           const double sample_l); //对SamplePoints进行操作，调试完毕
   double CalcPathCost(SLPoint point1, SLPoint point2);
   void CalcQuinticCoeffient(const SLPoint &point1, const SLPoint &point2,
-                            std::vector<double> &QuinticCoeffient);
+                            std::vector<double> *QuinticCoeffient); //调试完毕
   void PathDynamicPlanning();
   // 5.dp路径插值
   void DpPathInterpolation(int interpolation_num, double ds);
+
+  const std::vector<SLPoint> dp_path_points() const; //动态规划路径点
+  const std::vector<SLPoint> dp_path_points_dense() const; //动态规划加密路径点
 
   //二次规划相关
   void
@@ -89,7 +90,9 @@ private:
   ReferencePoint host_project_point_; //车辆在参考线的投影点
   LocalizationEstimate localization_; //车辆的定位信息，世界坐标系
   std::vector<SLPoint> sl_reference_line_; // l均为0，s由车辆定位决定
-  SLPoint sl_host_;                        //自车的sl
+
+  SLPoint sl_plan_start_;
+  SLPoint sl_host_;                                 //自车的sl
   std::vector<SLPoint> sl_static_obstacles_;        //静态障碍物的sl
   std::vector<std::vector<SLPoint>> sample_points_; //采样点矩阵
   std::vector<SLPoint> dp_path_points_;             //动态规划路径点

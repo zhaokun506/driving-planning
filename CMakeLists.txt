@@ -42,7 +42,7 @@ include_directories(${PROJECT_SOURCE_DIR}#工程目录
 )
 
 # Create the executable
-add_executable(reference_line reference_line_test.cc)
+add_executable(path_plan_test path_plan_test.cc)
 
 link_directories(
     "usr/local/lib"
@@ -53,7 +53,7 @@ link_directories(
 
 message(${PROJECT_BINARY_DIR})
 
-target_include_directories(reference_line PUBLIC 
+target_include_directories(path_plan_test PUBLIC 
                             ${PROJECT_SOURCE_DIR}#工程目录
                             "usr/include"#系统目录
                             "usr/local/include"#安装文件目录
@@ -81,7 +81,7 @@ find_package(Eigen3 REQUIRED)
 find_package(OsqpEigen)
 
 
-target_link_libraries(reference_line PUBLIC
+target_link_libraries(path_plan_test PUBLIC
     reference_line_provider
     plot
     routing

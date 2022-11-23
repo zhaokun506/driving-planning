@@ -319,7 +319,7 @@ double SpeedTimeGraph::CalcObsCost(const STPoint &point_s,
   }
 }
 
-double CalcCollisionCost(double w_cost_obs, double min_dis) {
+double SpeedTimeGraph::CalcCollisionCost(double w_cost_obs, double min_dis) {
   double collision_cost = 0;
   if (abs(min_dis) < 0.5)
     collision_cost = w_cost_obs;

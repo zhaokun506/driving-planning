@@ -4,15 +4,15 @@ class EMPlannerConfig {
 private:
   /* data */
 public:
-  EMPlannerConfig(/* args */);
-  ~EMPlannerConfig();
+  EMPlannerConfig(/* args */) = default;
+  ~EMPlannerConfig() = default;
   double planning_cycle_time;
 
-  double dp_cost_collision = 1;
-  double dp_cost_dl = 1;
+  double dp_cost_collision = 1.8; // default=10
+  double dp_cost_dl = 120;       //
   double dp_cost_ddl = 1;
   double dp_cost_dddl = 1;
-  double dp_cost_ref = 1;
+  double dp_cost_ref = 20; // default=100
 
   double dp_row = 1;
   double dp_col = 1;

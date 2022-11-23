@@ -26,10 +26,13 @@ void ReferenceLineProvider::Provide(
     FindMatchAndProjectPoint(frenet_path_, vct_host_xy, pre_match_point_index,
                              5, host_match_points, host_project_points);
   }
-  host_match_point_ = host_match_points.front();
-  host_project_point_ = host_project_points.front();
+
+  reference_line.set_host_match_point(host_match_points.front());
+  reference_line.set_host_project_point(host_project_points.front());
+
   //截取初始参考线
-  GetReferenceLine(frenet_path_, host_match_point_.index, raw_reference_line_);
+  GetReferenceLine(frenet_path_, reference_line.host_match_point().index,
+                   raw_reference_line_);
   //参考线平滑
   ReferenceLineSmootherConfig smoother_config; //平滑配置
   std::unique_ptr<ReferenceLineSmoother> smoother =
@@ -116,7 +119,7 @@ void ReferenceLineProvider::GetReferenceLine(const ReferenceLine &frenet_path,
   int start_index = -1;
   int len = frenet_path.reference_points().size();
   //% 匹配点后面的点太少了，不够30个
-  if (host_match_point_index - 30 < 1)
+  if (host_match_point_index - 30 < 0)
     start_index = 0;
   //% 匹配点前面的点太少了，不够150个
   else if (host_match_point_index + 150 > len)
@@ -130,7 +133,7 @@ void ReferenceLineProvider::GetReferenceLine(const ReferenceLine &frenet_path,
   std::vector<ReferencePoint>::const_iterator it_end =
       frenet_path.reference_points().begin() + start_index + 180;
   std::vector<ReferencePoint> reference_points(it_start, it_end);
-  reference_line.set_reference_points(reference_points);
+  reference_line.set_reference_points(reference_points); // 0点发生变化
   reference_line.set_match_point_index(host_match_point_index);
 }
 
@@ -205,6 +208,7 @@ void ReferenceLineProvider::RoutingPathToFrenetPath(
     ReferencePoint rp;
     rp.x = points[i].x;
     rp.y = points[i].y;
+    rp.index = i;
     rp.heading = points_heading[i];
     rp.kappa = points_kappa[i];
     reference_points.push_back(rp);

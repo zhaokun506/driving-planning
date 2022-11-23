@@ -28,6 +28,19 @@ void LocalizationEstimate::UpdateLocalizationInfo(u_int64_t time,
   if (time == 0) {
     localization_info_.x = 0;
     localization_info_.y = 0;
+    localization_info_.t = 0;
+
+    localization_info_.v = 0;
+    localization_info_.vx = 0;
+    localization_info_.vy = 0;
+
+    localization_info_.a = 0;
+    localization_info_.ax = 0;
+    localization_info_.ay = 0;
+
+    localization_info_.heading = 0;
+    localization_info_.kappa = 0;
+
   } else {
     auto trajectory_points = trajectory.trajectory_points();
     int i = 0;
