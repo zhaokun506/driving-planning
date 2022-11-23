@@ -23,7 +23,9 @@
         
 参考线平滑结果：
 ![参考系平滑](https://user-images.githubusercontent.com/54465004/201812152-533bb555-c0a2-46b2-8369-432a21c60b68.png)
+![动态规划](https://user-images.githubusercontent.com/54465004/203503595-d1f27155-b44d-4e37-9a41-67398ded8c28.png)
 
+![路径二次规划](https://user-images.githubusercontent.com/54465004/203503604-3117dc5f-d96a-4b03-b6da-b9b32ed09d82.png)
 
 
 参考文献：
