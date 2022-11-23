@@ -21,9 +21,9 @@ void EMPlanner::Plan(const u_int64_t current_time,
 
   sl_graph_->CreateSamplingPoint(11, 6, 10, 1); // 11行，4列
   sl_graph_->PathDynamicPlanning();
-  sl_graph_->DpPathInterpolation(60, 1); // 60个点，间隔1m
-  // sl_graph_->GenerateConvexSpace(5, 2);  //静态障碍物的长和宽
-  // sl_graph_->PathQuadraticProgramming();
+  sl_graph_->DpPathInterpolation(60, 1); // 61个点，间隔1m
+  sl_graph_->GenerateConvexSpace(4, 2);  //静态障碍物的长和宽
+  sl_graph_->PathQuadraticProgramming();
   // //增密至501个点 ??path不是加密到400个点了吗？
   // sl_graph_->QpPathInterpolation(401, 0.1);
   // sl_graph_->GeneratePlaningPath();

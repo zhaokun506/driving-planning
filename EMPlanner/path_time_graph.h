@@ -54,9 +54,10 @@ public:
       const std::vector<ObstacleInfo> static_obstacles); //存在问题
 
   // 4.dp主算法相关生成采样点
-  void CreateSamplingPoint(const int row, const int col, const double sample_s,
-                           const double sample_l); //对SamplePoints进行操作，调试完毕
-  double CalcPathCost(SLPoint point1, SLPoint point2);
+  void
+  CreateSamplingPoint(const int row, const int col, const double sample_s,
+                      const double sample_l); //对SamplePoints进行操作，调试完毕
+  double CalcPathCost(SLPoint point1, SLPoint point2); //完成调试
   void CalcQuinticCoeffient(const SLPoint &point1, const SLPoint &point2,
                             std::vector<double> *QuinticCoeffient); //调试完毕
   void PathDynamicPlanning();
@@ -66,11 +67,14 @@ public:
   const std::vector<SLPoint> dp_path_points() const; //动态规划路径点
   const std::vector<SLPoint> dp_path_points_dense() const; //动态规划加密路径点
 
+  const std::vector<SLPoint> qp_path_points() const; //动态规划路径点
+  const std::vector<SLPoint> qp_path_points_dense() const; //动态规划加密路径点
+
   //二次规划相关
   void
   GenerateConvexSpace(double static_obs_length,
                       double static_obs_width); //根据dp_path,输出l_minx,l_max
-  int FindNearIndex(std::vector<SLPoint> dp_path_points_dense, double s);
+  int FindNearIndex(const std::vector<SLPoint> &dp_path_points_dense, double s);
   bool PathQuadraticProgramming();
   void QpPathInterpolation(int interpolation_num, double ds);
 

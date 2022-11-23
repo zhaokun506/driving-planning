@@ -17,11 +17,11 @@ public:
   double dp_row = 1;
   double dp_col = 1;
 
-  double qp_cost_l = 1;
+  double qp_cost_l = 10;
   double qp_cost_dl = 1;
   double qp_cost_ddl = 1;
   double qp_cost_dddl = 1;
-  double qp_cost_centre = 1;
+  double qp_cost_centre = 5;
   double qp_cost_end_l = 1;
   double qp_cost_end_dl = 1;
   double qp_cost_end_ddl = 1;

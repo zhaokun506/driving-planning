@@ -89,6 +89,8 @@ int main(int argc, char const *argv[]) {
     plot->PlotObs(obs, "k");
   }
 
+  plot->PlotSLPath(em_planner->sl_graph_->qp_path_points(), "r");
+
   plt::show();
   return 0;
 }
