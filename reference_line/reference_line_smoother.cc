@@ -9,6 +9,8 @@ ReferenceLineSmoother::ReferenceLineSmoother(
 
 void ReferenceLineSmoother::Smooth(const ReferenceLine &raw_reference_line,
                                    ReferenceLine &smoothed_reference_line) {
+
+  smoothed_reference_line = raw_reference_line;//将平滑参考线初始化为初始参号线
   std::vector<std::pair<double, double>> raw_point2d;
   std::vector<std::pair<double, double>> smoothed_point2d;
   for (const auto point : raw_reference_line.reference_points()) {

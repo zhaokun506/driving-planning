@@ -36,9 +36,37 @@ void PerceptionObstacle::AddStaticObstacle(int id, double init_x, double init_y,
   obs.x = init_x;
   obs.y = init_y;
   obs.heading = init_heading;
-  obs.v = 0;
+  obs.v = init_v;
 
   static_obstacles_.push_back(obs);
+}
+
+void PerceptionObstacle::AddDynamicObstacle(int id, double init_x,
+                                            double init_y, double init_heading,
+                                            double init_v) {
+  ObstacleInfo obs;
+  if (dynamic_obstacles_.empty()) {
+    obs.ID = 0;
+  } else {
+    obs.ID = static_obstacles_.size() - 1;
+  }
+  obs.init_x = init_x;
+  obs.init_y = init_y;
+  obs.init_heading = init_heading;
+
+  obs.x = init_x;
+  obs.y = init_y;
+  obs.heading = init_heading;
+
+  obs.v = init_v;
+  obs.vx = obs.v * cos(obs.heading);
+  obs.vy = obs.v * sin(obs.heading);
+
+  obs.a = 0;
+  obs.ax = obs.a * cos(obs.heading);
+  obs.ay = obs.a * sin(obs.heading);
+
+  dynamic_obstacles_.push_back(obs);
 }
 
 PerceptionObstacle::PerceptionObstacle() {

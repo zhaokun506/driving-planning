@@ -78,7 +78,7 @@ public:
   double dds_dt;
 
   double cost2start;
-  double pre_mincost_row;
+  int pre_mincost_row;
 };
 
 class STLine {

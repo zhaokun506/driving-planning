@@ -33,7 +33,11 @@ int main(int argc, char const *argv[]) {
   perception->AddStaticObstacle(0, 30, -0.5, 0,
                                 0); //此代码执行错误，待查找原因
 
-  auto obstacle_info = perception->static_obstacles();
+  perception->AddDynamicObstacle(1, 40, -10, M_PI / 2,
+                                 2); //此代码执行错误，待查找原因
+
+  auto static_obstacle_info = perception->static_obstacles();
+  auto dynamic_obstacle_info = perception->dynamic_obstacles();
 
   auto routing_path_points = routing_path->routing_path_points();
 
@@ -75,21 +79,34 @@ int main(int argc, char const *argv[]) {
                                    &plan_start_point, &stitch_trajectory);
 
   em_planner->Plan(0, plan_start_point, raw_reference_line, localization_info,
-                   obstacle_info, &trajectory, virtual_obs);
+                   static_obstacle_info, dynamic_obstacle_info, &trajectory,
+                   virtual_obs);
 
   std::unique_ptr<Plot> plot = std::make_unique<Plot>();
 
+  plt::figure(1); // xy
   plot->PlotRoutingPath(routing_path_points, "k");
   plot->PlotReferenceLine(reference_line, "y");
 
+  plt::figure(2); // sl
   plot->PlotSLPath(em_planner->sl_graph_->dp_path_points(), "r");
   plot->PlotSLPath(em_planner->sl_graph_->dp_path_points_dense(), "g");
 
-  for (const auto obs : obstacle_info) {
+  for (const auto obs : static_obstacle_info) {
     plot->PlotObs(obs, "k");
   }
 
   plot->PlotSLPath(em_planner->sl_graph_->qp_path_points(), "r");
+
+  plot->PlotSLPath(em_planner->sl_graph_->qp_path_points_dense(), "p");
+
+  plot->PlotPlanningPath(
+      em_planner->sl_graph_->planning_path().reference_points(), "b");
+
+  plt::figure(3); // st
+
+  plot->PlotSTObs(em_planner->st_graph_->st_obstacles(), "k");
+  plot->PlotSTPath(em_planner->st_graph_->dp_speed_points(), "r");
 
   plt::show();
   return 0;

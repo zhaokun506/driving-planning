@@ -14,7 +14,6 @@
 #include <float.h>
 #include <vector>
 
-
 #include "trajectory.h"
 
 class SpeedTimeGraph {
@@ -26,7 +25,7 @@ public:
   void InitSAxis(const ReferenceLine planning_path);
 
   //计算速度规划的
-  void CalcStartCondition();
+  void SetStartState(const SLPoint &sl_plan_start);
   // 2.计算障碍物的ST位置
   void SetDynamicObstaclesSL(const std::vector<ObstacleInfo> dynamic_obstacles);
 
@@ -53,6 +52,10 @@ public:
   const std::vector<ObstacleInfo>
   xy_virtual_obstacles() const; //虚拟障碍物的xy坐标
 
+  std::vector<STLine> st_obstacles();
+
+  const std::vector<STPoint> dp_speed_points() const;
+
 private:
   EMPlannerConfig emplaner_conf_;
   ReferenceLine planning_path_;
@@ -62,10 +65,11 @@ private:
 
   std::vector<SLPoint> sl_dynamic_obstacles_; //障碍物信息应该有ID
   SLPoint plan_start_;                        //规划起点
+  STPoint st_plan_start_;                     //规划起点
   std::vector<SLPoint> sl_virtual_obstacles_; //虚拟障碍物的sl坐标
   std::vector<ReferencePoint> xy_virtual_obstacles_; //虚拟障碍物的xy坐标
 
-  std::vector<STLine> st_obstacles;
+  std::vector<STLine> st_obstacles_;
   std::vector<std::vector<STPoint>> sample_points_;
 
   std::vector<STPoint> dp_speed_points_;

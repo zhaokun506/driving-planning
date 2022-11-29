@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/pnc_point.h"
+#include <math.h>
 #include <vector>
 
 class PerceptionObstacle {
@@ -17,6 +18,8 @@ public:
 
   void AddStaticObstacle(int id, double init_x, double init_y,
                          double init_heading, double init_v);
+  void AddDynamicObstacle(int id, double init_x, double init_y,
+                          double init_heading, double init_v);
   void FilterAndOutObstacleInfo(
       LocalizationInfo localization_info); //根据车辆的位置输出障碍物信息
 

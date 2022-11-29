@@ -85,6 +85,7 @@ public:
                      ReferencePoint &project_point);
 
   const ReferenceLine planning_path() const;
+  const SLPoint sl_plan_start() const;
 
 private:
   EMPlannerConfig config_;

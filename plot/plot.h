@@ -20,5 +20,13 @@ public:
   void PlotSLPath(std::vector<SLPoint> sl_path_points,
                   const std::string &color);
 
+  void PlotPlanningPath(std::vector<ReferencePoint> planning_path_points,
+                        const std::string &color);
+
   void PlotObs(ObstacleInfo obs, const std::string &color);
+
+  void PlotSTObs(std::vector<STLine> st_obstacles, const std::string &color);
+
+  void PlotSTPath(std::vector<STPoint> dp_speed_points,
+                  const std::string &color);
 };

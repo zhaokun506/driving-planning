@@ -8,15 +8,22 @@ SpeedTimeGraph::SpeedTimeGraph(ReferenceLine planning_path,
   planning_path_ = planning_path;
   emplaner_conf_ = emplaner_conf;
   InitSAxis(planning_path_);
+  //起点的速度应该等于，规划起点的速度
+  st_plan_start_.s = 0;
+  st_plan_start_.t = 0;
+  st_plan_start_.ds_dt = 0;
+  st_plan_start_.dds_dt = 0;
 }
 // 1.基于规划的轨迹，初始化坐标轴
 void SpeedTimeGraph::InitSAxis(const ReferenceLine planning_path) {
   std::vector<ReferencePoint> planning_path_points =
       planning_path.reference_points();
+  int size = planning_path_points.size();
   std::vector<SLPoint> sl_planning_path;
+  sl_planning_path.resize(size);
   sl_planning_path[0].s = 0;
   sl_planning_path[0].index = 0;
-  int size = planning_path_points.size();
+
   double ds2start = 0;
   for (int i = 1; i < size; i++) {
     ds2start =
@@ -26,24 +33,33 @@ void SpeedTimeGraph::InitSAxis(const ReferenceLine planning_path) {
     sl_planning_path[i].s = ds2start;
     sl_planning_path[i].index = i;
   }
+  sl_planning_path_ = sl_planning_path;
 }
 
-void SpeedTimeGraph::CalcStartCondition() {}
+void SpeedTimeGraph::SetStartState(const SLPoint &sl_plan_start) {
+
+  st_plan_start_.s = 0;
+  st_plan_start_.t = 0;
+
+  st_plan_start_.ds_dt = sl_plan_start.ds_dt;
+  st_plan_start_.dds_dt = sl_plan_start.dds_dt;
+}
 
 // 2.计算障碍物的ST位置
 void SpeedTimeGraph::SetDynamicObstaclesSL(
     const std::vector<ObstacleInfo> dynamic_obstacles) {
-  std::vector<MapPoint> obstacles_xy;
+  std::vector<MapPoint> obstacles_xy(dynamic_obstacles.size());
+
   for (int i = 0; i < dynamic_obstacles.size(); i++) {
     obstacles_xy[i].x = dynamic_obstacles[i].x;
-    obstacles_xy[i].x = dynamic_obstacles[i].y;
+    obstacles_xy[i].y = dynamic_obstacles[i].y;
   }
   std::vector<ReferencePoint> match_points;
   std::vector<ReferencePoint> project_points;
   ReferenceLineProvider::FindMatchAndProjectPoint(
-      planning_path_, obstacles_xy, 0, 3, match_points, project_points);
+      planning_path_, obstacles_xy, 0, 30, match_points, project_points);
   //此部分比较妥协，暂时使用这种赋值循环，解决障碍物信息和参数不一致得到的问题
-  std::vector<TrajectoryPoint> traj_points;
+  std::vector<TrajectoryPoint> traj_points(dynamic_obstacles.size());
   for (int i = 0; i < dynamic_obstacles.size(); i++) {
     traj_points[i].x = dynamic_obstacles[i].x;
     traj_points[i].y = dynamic_obstacles[i].y;
@@ -139,7 +155,7 @@ void SpeedTimeGraph::GenerateSTGraph() {
       st_obstacle.right_point.s = obs.s + obs.ds_dt * t_max;
       st_obstacle.right_point.t = t_max;
     }
-    st_obstacles.push_back(st_obstacle);
+    st_obstacles_.push_back(st_obstacle);
   }
 }
 
@@ -150,6 +166,8 @@ void SpeedTimeGraph::CreateSmaplePoint(int row, int col) { // row=40,col=16;
   % s的范围从0开始到路径规划的path的总长度为止
   % 为了减少算力 采用非均匀采样，s越小的越密，越大的越稀疏
   */
+  sample_points_.resize(row);
+  
   double s = 0;
   for (int i = 0; i < row; i++) { //
     if (i < 10)
@@ -162,6 +180,7 @@ void SpeedTimeGraph::CreateSmaplePoint(int row, int col) { // row=40,col=16;
       s = 0.5 * 9 + 1 * 10 + 1.5 * 10 + 2.5 * (i - 29);
 
     double dt = 1;
+    sample_points_[i].resize(col);
     for (int j = 0; j < col; j++) {
       sample_points_[i][j].s = s;
       sample_points_[i][j].t = (j + 1) * 0.5;
@@ -169,40 +188,41 @@ void SpeedTimeGraph::CreateSmaplePoint(int row, int col) { // row=40,col=16;
     }
   }
 }
+
 // 4.动态规划
 void SpeedTimeGraph::SpeedDynamicPlanning() {
   int row = sample_points_.size();
   int col = sample_points_[0].size();
+
   for (int i = 0; i < row; i++) {
     // 第一列的前一个节点只有起点，起点的s t 都是0
 
     sample_points_[i][0].ds_dt =
         sample_points_[i][0].s / sample_points_[i][0].t;
     sample_points_[i][0].dds_dt =
-        sample_points_[i][0].ds_dt - plan_start_.ds_dt / sample_points_[i][0].t;
+        (sample_points_[i][0].ds_dt - st_plan_start_.ds_dt) /
+        sample_points_[i][0].t;
 
-    STPoint plan_start;
-    plan_start.t = 0;
-    plan_start.s = 0;
     sample_points_[i][0].cost2start =
-        CalcDpCost(plan_start, sample_points_[i][0]);
+        CalcDpCost(st_plan_start_, sample_points_[i][0]);
     sample_points_[i][0].pre_mincost_row = -1;
   }
+
   //动态规划主程序
   for (int j = 1; j < col; j++) {
     for (int i = 0; i < row; i++) {
-      double cost = DBL_MAX;
-      for (int k = 0; k < row; k++) {
+      for (int k = 0; k <= i; k++) {
         //根据上一点的速度和加速度计算速度和加速度
-        sample_points_[k][j].ds_dt =
-            (sample_points_[k][j].s - sample_points_[k][j - 1].s) /
-            (sample_points_[k][j].t - sample_points_[k][j - 1].t);
-        sample_points_[k][j].dds_dt =
-            (sample_points_[k][j].ds_dt - sample_points_[k][j - 1].ds_dt) /
-            (sample_points_[k][j].t - sample_points_[k][j - 1].t);
+        sample_points_[i][j].ds_dt =
+            (sample_points_[i][j].s - sample_points_[k][j - 1].s) /
+            (sample_points_[i][j].t - sample_points_[k][j - 1].t);
+        sample_points_[i][j].dds_dt =
+            (sample_points_[i][j].ds_dt - sample_points_[k][j - 1].ds_dt) /
+            (sample_points_[i][j].t - sample_points_[k][j - 1].t);
 
-        cost = sample_points_[k][j - 1].cost2start +
-               CalcDpCost(sample_points_[i][j], sample_points_[k][j - 1]);
+        double cost =
+            sample_points_[k][j - 1].cost2start +
+            CalcDpCost(sample_points_[k][j - 1], sample_points_[i][j]);
         if (cost < sample_points_[i][j].cost2start) {
           sample_points_[i][j].cost2start = cost;
           //保留最优的点的ds_dt
@@ -220,21 +240,22 @@ void SpeedTimeGraph::SpeedDynamicPlanning() {
   double min_row;
   double min_col;
   for (int i = 0; i < row; i++) {
-    if (sample_points_[i][col].cost2start <= min_cost) {
-      min_cost = sample_points_[i][col].cost2start;
+    if (sample_points_[i][col - 1].cost2start <= min_cost) {
+      min_cost = sample_points_[i][col - 1].cost2start;
       min_row = i;
-      min_col = col;
+      min_col = col - 1;
     }
   }
 
-  for (int j = 0; j < row; j++) {
-    if (sample_points_[row][j].cost2start <= min_cost) {
-      min_cost = sample_points_[row][j].cost2start;
-      min_row = row;
+  for (int j = 0; j < col; j++) {
+    if (sample_points_[row - 1][j].cost2start <= min_cost) {
+      min_cost = sample_points_[row - 1][j].cost2start;
+      min_row = row - 1;
       min_col = j;
     }
   }
-  std::vector<STPoint> dp_speed_points;
+  std::vector<STPoint> dp_speed_points(min_col);
+
   dp_speed_points[min_col - 1] = sample_points_[min_row][min_col];
   for (int j = 1; j < min_col; j++) {
     int pre_mincost_row = dp_speed_points[min_col - j].pre_mincost_row;
@@ -261,8 +282,8 @@ double SpeedTimeGraph::CalcDpCost(STPoint &point_s, STPoint &point_e) {
 
   double cur_s_dot =
       (point_e.s - point_s.s) / (point_e.t - point_s.t); //计算速度
-  double cur_s_dot2 = (point_e.ds_dt - point_s.ds_dt) /
-                      (point_e.ds_dt - point_s.ds_dt); //计算加速度
+  double cur_s_dot2 =
+      (point_e.ds_dt - point_s.ds_dt) / (point_e.t - point_s.t); //计算加速度
   //计算推荐速度代价
   double cost_ref_speed = emplaner_conf_.speed_dp_cost_ref_speed *
                           pow(cur_s_dot - emplaner_conf_.ref_speed, 2);
@@ -274,6 +295,7 @@ double SpeedTimeGraph::CalcDpCost(STPoint &point_s, STPoint &point_e) {
     // % 超过车辆动力学限制，代价会增大很多倍
     cost_accel =
         100000 * emplaner_conf_.speed_dp_cost_accel * pow(cur_s_dot2, 2);
+
   double cost_obs = CalcObsCost(point_s, point_e);
 
   return cost_ref_speed + cost_accel + cost_obs;
@@ -297,14 +319,14 @@ double SpeedTimeGraph::CalcObsCost(const STPoint &point_s,
     double s = point_s.s + k * i * dt;
     double min_dis = 0;
     for (const auto &obs :
-         st_obstacles) { //计算路径点到障碍物的距离，点到线的距离。
+         st_obstacles_) { //计算路径点到障碍物的距离，点到线的距离。
       //计算点到线的距离，如果垂线在三角形内
       Eigen::Vector2d vector1(obs.left_point.t - t, obs.left_point.s - s);
       Eigen::Vector2d vector2(obs.right_point.t - t, obs.right_point.s - s);
       Eigen::Vector2d vector3 = vector2 - vector1;
       double dis1 = sqrt(vector1.transpose() * vector1);
-      double dis2 = sqrt(vector1.transpose() * vector1);
-      double dis3 = abs(vector1(1) * vector3(2) - vector1(2) * vector3(1)) /
+      double dis2 = sqrt(vector2.transpose() * vector2);
+      double dis3 = abs(vector1.transpose() * vector2) /
                     sqrt(vector3.transpose() * vector3);
       if ((vector1.transpose() * vector3 > 0 &&
            vector2.transpose() * vector3 > 0) ||
@@ -323,7 +345,7 @@ double SpeedTimeGraph::CalcCollisionCost(double w_cost_obs, double min_dis) {
   double collision_cost = 0;
   if (abs(min_dis) < 0.5)
     collision_cost = w_cost_obs;
-  else if (abs(min_dis) > 0.5 && abs(min_dis) < 1.5)
+  else if (abs(min_dis) >= 0.5 && abs(min_dis) < 1.5)
     //  % min_dis = 0.5 collision_cost = w_cost_obs ^ 1;
     // % min_dis = 1.5 collision_cost = w_cost_obs ^ 0 = 1
     collision_cost = pow(w_cost_obs, (0.5 - min_dis) + 1);
@@ -370,7 +392,7 @@ void SpeedTimeGraph::GenerateCovexSpace() {
     convex_ds_dt_ub_(i) = max_speed;
   }
 
-  for (const auto &obs : st_obstacles) {
+  for (const auto &obs : st_obstacles_) {
     //  % 取s t 直线的中点，作为obs_s obs_t 的坐标
     double obs_t = (obs.left_point.t + obs.right_point.t) / 2;
     double obs_s = (obs.left_point.s + obs.right_point.s) / 2;
@@ -745,3 +767,9 @@ const Trajectory SpeedTimeGraph::trajectory() const { return trajectory_; }
 const std::vector<ObstacleInfo> SpeedTimeGraph::xy_virtual_obstacles() const {
 
 } //虚拟障碍物的xy坐标
+
+std::vector<STLine> SpeedTimeGraph::st_obstacles() { return st_obstacles_; }
+
+const std::vector<STPoint> SpeedTimeGraph::dp_speed_points() const {
+  return dp_speed_points_;
+}

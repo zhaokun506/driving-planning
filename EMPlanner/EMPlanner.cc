@@ -7,35 +7,33 @@ void EMPlanner::Plan(const u_int64_t current_time,
                      const TrajectoryPoint &planning_init_point,
                      const ReferenceLine &reference_line,
                      const LocalizationInfo &localization_info,
-                     const std::vector<ObstacleInfo> &obstacles,
+                     const std::vector<ObstacleInfo> &static_obstacles,
+                     const std::vector<ObstacleInfo> &dynamic_obstacles,
                      Trajectory *trajectory,
                      std::vector<ObstacleInfo> xy_virtual_obstacles) {
 
   sl_graph_ = std::make_unique<PathTimeGraph>(reference_line, config_);
 
   sl_graph_->SetStartPointSl(planning_init_point);
-
-  auto static_obstacles = obstacles;
-
   sl_graph_->SetStaticObstaclesSl(static_obstacles);
 
-  sl_graph_->CreateSamplingPoint(11, 6, 10, 1); // 11行，4列
+  sl_graph_->CreateSamplingPoint(11, 6, 10, 1); // 11行，6列
   sl_graph_->PathDynamicPlanning();
   sl_graph_->DpPathInterpolation(60, 1); // 61个点，间隔1m
   sl_graph_->GenerateConvexSpace(4, 2);  //静态障碍物的长和宽
   sl_graph_->PathQuadraticProgramming();
   // //增密至501个点 ??path不是加密到400个点了吗？
-  // sl_graph_->QpPathInterpolation(401, 0.1);
-  // sl_graph_->GeneratePlaningPath();
+  sl_graph_->QpPathInterpolation(601, 0.1);
+  sl_graph_->GeneratePlaningPath();
 
-  // ReferenceLine plannig_path = sl_graph_->planning_path();
+  ReferenceLine plannig_path = sl_graph_->planning_path();
 
-  // st_graph_ = std::make_unique<SpeedTimeGraph>(plannig_path, config_);
-
-  // auto dynamic_obstacles = obstacles;
-  // st_graph_->SetDynamicObstaclesSL(dynamic_obstacles);
-  // st_graph_->CreateSmaplePoint(40, 16);
-  // st_graph_->SpeedDynamicPlanning();
+  st_graph_ = std::make_unique<SpeedTimeGraph>(plannig_path, config_);
+  st_graph_->SetStartState(sl_graph_->sl_plan_start());
+  st_graph_->SetDynamicObstaclesSL(dynamic_obstacles);
+  st_graph_->GenerateSTGraph();
+  st_graph_->CreateSmaplePoint(40, 16);
+  st_graph_->SpeedDynamicPlanning();
   // st_graph_->GenerateCovexSpace();
   // st_graph_->SpeedQuadraticProgramming();
   // st_graph_->SpeedQpInterpolation(401);

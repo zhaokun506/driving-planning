@@ -19,11 +19,12 @@ public:
   EMPlanner(const EMPlannerConfig &conf);
   ~EMPlanner() = default;
 
-  void Plan(const uint64_t current_time,                     //当前时间
-            const TrajectoryPoint &planning_init_point,      //规划起点
-            const ReferenceLine &reference_line,             //参考线
-            const LocalizationInfo &localization,            //定位信息
-            const std::vector<ObstacleInfo> &obstacle,       //障碍物信息
+  void Plan(const uint64_t current_time,                //当前时间
+            const TrajectoryPoint &planning_init_point, //规划起点
+            const ReferenceLine &reference_line,        //参考线
+            const LocalizationInfo &localization,       //定位信息
+            const std::vector<ObstacleInfo> &obstacle,  //障碍物信息
+            const std::vector<ObstacleInfo> &dynamic_obstacles,
             Trajectory *trajectory,                          //输出轨迹
             std::vector<ObstacleInfo> xy_virtual_obstacles); //虚拟障碍物
 

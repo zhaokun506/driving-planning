@@ -18,17 +18,18 @@ void ReferenceLineProvider::Provide(
   std::vector<ReferencePoint> host_match_points;
   std::vector<ReferencePoint> host_project_points;
   if (pre_reference_line.reference_points().empty()) //首次运行
-    FindMatchAndProjectPoint(frenet_path_, vct_host_xy, 0, 50,
-                             host_match_points, host_project_points);
-  else //非首次运行
+    FindMatchAndProjectPoint(
+        frenet_path_, vct_host_xy, 0, 50, host_match_points,
+        host_project_points); //找到车辆在全局路径的匹配匹配点
+  else                        //非首次运行
   {
     int pre_match_point_index = pre_reference_line.match_point_index();
     FindMatchAndProjectPoint(frenet_path_, vct_host_xy, pre_match_point_index,
                              5, host_match_points, host_project_points);
   }
 
-  reference_line.set_host_match_point(host_match_points.front());
-  reference_line.set_host_project_point(host_project_points.front());
+  frenet_path_.set_host_match_point(host_match_points.front());
+  frenet_path_.set_host_project_point(host_project_points.front());
 
   //截取初始参考线
   GetReferenceLine(frenet_path_, reference_line.host_match_point().index,
@@ -57,8 +58,8 @@ void ReferenceLineProvider::FindMatchAndProjectPoint(
   for (int i = 0; i < map_points.size(); i++) {
     double min_distance = DBL_MAX;
     for (int j = index_start_search; j < size; j++) {
-      double distance = pow(map_points[j].x - frenet_path_points[i].x, 2) +
-                        pow(map_points[j].y - frenet_path_points[i].y, 2);
+      double distance = pow(map_points[i].x - frenet_path_points[j].x, 2) +
+                        pow(map_points[i].y - frenet_path_points[j].y, 2);
       if (distance < min_distance) {
         //如果距离小于最小距离，说明距离在递减
         min_distance = distance;
@@ -78,12 +79,12 @@ void ReferenceLineProvider::FindMatchAndProjectPoint(
 
     match_points[i].x = frenet_path_points[match_points[i].index].x;
     match_points[i].y = frenet_path_points[match_points[i].index].y;
-    match_points[i].heading = frenet_path_points[match_points[i].index].x;
-    match_points[i].kappa = frenet_path_points[match_points[i].index].y;
+    match_points[i].heading = frenet_path_points[match_points[i].index].heading;
+    match_points[i].kappa = frenet_path_points[match_points[i].index].kappa;
 
     //根据匹配点求投影点
 
-    // 计算匹配点的方向向量与法向量
+    // 计算匹配点的方向向量与法向量,此处更换为eigen vector2d
     std::pair<double, double> vector_match_point =
         std::make_pair(match_points[i].x, match_points[i].y);
     std::pair<double, double> vector_match_point_direction = std::make_pair(
@@ -104,7 +105,7 @@ void ReferenceLineProvider::FindMatchAndProjectPoint(
     // vector_match_point_direction;
     project_points[i].x =
         match_points[i].x + ds * vector_match_point_direction.first;
-    project_points[i].x =
+    project_points[i].y =
         match_points[i].y + ds * vector_match_point_direction.second;
     project_points[i].heading =
         match_points[i].heading + match_points[i].kappa * ds;
@@ -113,28 +114,43 @@ void ReferenceLineProvider::FindMatchAndProjectPoint(
 }
 
 // 2.根据自车位置的匹配点，截取参考线 首次截取调用参考线平滑器，进行参考线平滑
-void ReferenceLineProvider::GetReferenceLine(const ReferenceLine &frenet_path,
-                                             const int host_match_point_index,
-                                             ReferenceLine &reference_line) {
+void ReferenceLineProvider::GetReferenceLine(
+    const ReferenceLine &frenet_path,
+    const int host_match_point_index, //车辆在全局path的索引
+    ReferenceLine &raw_reference_line) {
   int start_index = -1;
   int len = frenet_path.reference_points().size();
   //% 匹配点后面的点太少了，不够30个
-  if (host_match_point_index - 30 < 0)
+  int host_match_index = 0;
+  if (host_match_point_index - 30 < 0) {
     start_index = 0;
+    host_match_index = host_match_point_index;
+  }
   //% 匹配点前面的点太少了，不够150个
-  else if (host_match_point_index + 150 > len)
+  else if (host_match_point_index + 150 > len) {
     start_index = len - 180;
+    host_match_index = 180 - host_match_point_index;
+  }
+
   //正常情况
-  else
+  else {
     start_index = host_match_point_index - 30;
+    host_match_index = 30;
+  }
 
   std::vector<ReferencePoint>::const_iterator it_start =
       frenet_path.reference_points().begin() + start_index;
   std::vector<ReferencePoint>::const_iterator it_end =
       frenet_path.reference_points().begin() + start_index + 180;
   std::vector<ReferencePoint> reference_points(it_start, it_end);
-  reference_line.set_reference_points(reference_points); // 0点发生变化
-  reference_line.set_match_point_index(host_match_point_index);
+
+  raw_reference_line.set_reference_points(reference_points); // 0点发生变化
+  raw_reference_line.set_match_point_index(host_match_point_index);
+
+  //匹配点
+  raw_reference_line_.set_host_match_point(frenet_path.host_match_point());
+  //投影点
+  raw_reference_line_.set_host_project_point(frenet_path.host_project_point());
 }
 
 // 4.非首次截取进行平滑轨迹的拼接
