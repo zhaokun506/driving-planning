@@ -6,7 +6,7 @@ private:
 public:
   EMPlannerConfig(/* args */) = default;
   ~EMPlannerConfig() = default;
-  double planning_cycle_time;
+  double planning_time = 8;
 
   double dp_cost_collision = 1.8; // default=10
   double dp_cost_dl = 120;        //
@@ -31,7 +31,7 @@ public:
   double speed_dp_cost_accel = 10;
   double speed_dp_cost_obs = 1;
 
-  double speed_qp_cost_v_ref = 1;
+  double speed_qp_cost_v_ref = 10;
   double speed_qp_cost_dds_dt = 1;
   double speed_qp_cost_jerk = 1;
 

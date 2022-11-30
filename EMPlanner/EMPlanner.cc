@@ -34,9 +34,9 @@ void EMPlanner::Plan(const u_int64_t current_time,
   st_graph_->GenerateSTGraph();
   st_graph_->CreateSmaplePoint(40, 16);
   st_graph_->SpeedDynamicPlanning();
-  // st_graph_->GenerateCovexSpace();
-  // st_graph_->SpeedQuadraticProgramming();
-  // st_graph_->SpeedQpInterpolation(401);
+  st_graph_->GenerateCovexSpace();
+  st_graph_->SpeedQuadraticProgramming();
+  // st_graph_->SpeedQpInterpolation(601);
 
   // //路径和速度合并
   // // st_graph->PathAndSpeedMerge();
@@ -118,7 +118,7 @@ void EMPlanner::CalPlaningStartPoint(const Trajectory &pre_traj,
     //%横向误差
     double lat_err = abs(d_err.first * nor.first + d_err.second * nor.second);
     //%纵向误差大于2.5 横向误差大于0.5 认为控制没跟上
-    double dt = config_.planning_cycle_time;
+    double dt = 0.1; //时间间隔为0.1s一个点
     if ((lon_err > 2.5) || (lat_err > 0.5)) {
       // %此分支处理控制未跟上的情况，规划起点通过运动学递推，cur_time+0.1(下一时刻的车辆位置)
       //定位模块传递的速度是以车身为坐标系的，轨迹传递的速度是以世界为坐标系

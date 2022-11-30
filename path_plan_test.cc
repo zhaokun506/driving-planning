@@ -104,9 +104,10 @@ int main(int argc, char const *argv[]) {
       em_planner->sl_graph_->planning_path().reference_points(), "b");
 
   plt::figure(3); // st
-
   plot->PlotSTObs(em_planner->st_graph_->st_obstacles(), "k");
   plot->PlotSTPath(em_planner->st_graph_->dp_speed_points(), "r");
+  plt::figure(3);
+  plot->PlotSTPath(em_planner->st_graph_->qp_speed_points(), "b");
 
   plt::show();
   return 0;

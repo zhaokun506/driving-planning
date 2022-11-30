@@ -360,18 +360,18 @@ double SpeedTimeGraph::CalcCollisionCost(double w_cost_obs, double min_dis) {
 }
 
 void SpeedTimeGraph::GenerateCovexSpace() {
-  int n = 16;
-  convex_s_lb_ = Eigen::VectorXd::Ones(n, 1) * (-DBL_MAX);
-  convex_s_ub_ = Eigen::VectorXd::Ones(n, 1) * DBL_MAX;
-  convex_ds_dt_lb_ = Eigen::VectorXd::Ones(n, 1) * (-DBL_MAX);
-  convex_ds_dt_ub_ = Eigen::VectorXd::Ones(n, 1) * DBL_MAX;
+  int n = dp_speed_points_.size();
+  convex_s_lb_ = Eigen::VectorXd::Ones(n) * (-DBL_MAX);
+  convex_s_ub_ = Eigen::VectorXd::Ones(n) * DBL_MAX;
+  convex_ds_dt_lb_ = Eigen::VectorXd::Ones(n) * (-DBL_MAX);
+  convex_ds_dt_ub_ = Eigen::VectorXd::Ones(n) * DBL_MAX;
 
   int path_end_index = sl_planning_path_.size();
   int dp_end_index = dp_speed_points_.size();
 
   //此处不用找缓存
   //此处施加动力学约束，通过曲率和横向加速度计算速度限制
-  for (int i = 0; i < n; i++) {
+  for (int i = 1; i < n; i++) {
     double cur_s = dp_speed_points_[i].s;
     //搜索，可以用二分搜索
     //计算当前点的曲率，通过插值法
@@ -403,13 +403,13 @@ void SpeedTimeGraph::GenerateCovexSpace() {
     // 计算障碍物的纵向速度
     double obs_speed = (obs.right_point.s - obs.left_point.s) /
                        (obs.right_point.t - obs.left_point.t);
-    // % 插值找到当t = obs_t时，dp_speed_s 的值
+    // % 插值找到当t = obs_t时，动态规划的s 的值，用于判断让行还是超车
     double mid_index = FindDpMatchIndex(obs_t);
-    double min_k =
+    double mid_k =
         (dp_speed_points_[mid_index + 1].s - dp_speed_points_[mid_index].s) /
         (dp_speed_points_[mid_index + 1].t - dp_speed_points_[mid_index].t);
     double dp_s = dp_speed_points_[mid_index].s +
-                  min_k * (dp_speed_points_[mid_index + 1].t -
+                  mid_k * (dp_speed_points_[mid_index + 1].t -
                            dp_speed_points_[mid_index].t);
 
     // t_in,t_out对应的动态规划点
@@ -513,41 +513,38 @@ bool SpeedTimeGraph::SpeedQuadraticProgramming() {
   Eigen::VectorXd qp_dds_dt(n);
   Eigen::VectorXd relative_time(n);
 
-  int qp_size = dp_speed_points_.size();
+  // int qp_size = dp_speed_points_.size();
   // Hissen矩阵 3n*3n
-  Eigen::SparseMatrix<double> A_ref(3 * qp_size, 3 * qp_size);
-  Eigen::SparseMatrix<double> A_dds_dt(3 * qp_size, 3 * qp_size);
-  Eigen::SparseMatrix<double> A_jerk(3 * qp_size, qp_size - 1);
-  Eigen::SparseMatrix<double> H(3 * qp_size, 3 * qp_size);
+  Eigen::SparseMatrix<double> A_ref(3 * n, 3 * n);
+  Eigen::SparseMatrix<double> A_dds_dt(3 * n, 3 * n);
+  Eigen::SparseMatrix<double> A_jerk(3 * n, 3 * n);
+  Eigen::SparseMatrix<double> H(3 * n, 3 * n);
 
   // f矩阵 3n*1
-  Eigen::VectorXd f = Eigen::VectorXd::Zero(3 * qp_size);
+  Eigen::VectorXd f = Eigen::VectorXd::Zero(3 * n);
 
   //不等式约束
-  Eigen::SparseMatrix<double> A(qp_size - 1, 3 * qp_size);
-  Eigen::VectorXd b = Eigen::VectorXd::Zero(qp_size - 1);
+  Eigen::SparseMatrix<double> A(n - 1, 3 * n);
+  Eigen::VectorXd b = Eigen::VectorXd::Zero(n - 1);
 
   //等式约束
-  Eigen::SparseMatrix<double> Aeq(2 * qp_size - 2, 3 * qp_size);
-  Eigen::SparseMatrix<double> Aeq_tran(3 * qp_size, 2 * qp_size - 2);
-  Eigen::VectorXd beq = Eigen::VectorXd::Zero(2 * qp_size - 2, 1);
+  Eigen::SparseMatrix<double> Aeq(2 * n - 2, 3 * n);
+  Eigen::SparseMatrix<double> Aeq_tran(3 * n, 2 * n - 2);
+  Eigen::VectorXd beq = Eigen::VectorXd::Zero(2 * n - 2);
 
   //上下边界约束
-  Eigen::SparseMatrix<double> A_lu(3 * qp_size, 3 * qp_size);
+  Eigen::SparseMatrix<double> A_lu(3 * n, 3 * n);
   A_lu.setIdentity();
-  Eigen::VectorXd lb = Eigen::VectorXd::Zero(3 * qp_size);
-  Eigen::VectorXd ub = Eigen::VectorXd::Zero(3 * qp_size);
+  Eigen::VectorXd lb = Eigen::VectorXd::Zero(3 * n);
+  Eigen::VectorXd ub = Eigen::VectorXd::Zero(3 * n);
 
-  Eigen::SparseMatrix<double> A_merge(
-      qp_size - 1 + 2 * qp_size - 2 + 3 * qp_size, 3 * qp_size);
+  Eigen::SparseMatrix<double> A_merge(n - 1 + 2 * n - 2 + 3 * n, 3 * n);
 
-  Eigen::VectorXd lb_merge =
-      Eigen::VectorXd::Zero(3 * qp_size + qp_size - 1 + 3 * qp_size);
-  Eigen::VectorXd ub_merge =
-      Eigen::VectorXd::Zero(3 * qp_size + qp_size - 1 + 3 * qp_size);
+  Eigen::VectorXd lb_merge = Eigen::VectorXd::Zero(n - 1 + 2 * n - 2 + 3 * n);
+  Eigen::VectorXd ub_merge = Eigen::VectorXd::Zero(n - 1 + 2 * n - 2 + 3 * n);
 
   //生成H
-  for (int i = 0; i < qp_size; i++) {
+  for (int i = 0; i < n; i++) {
     A_ref.insert(3 * i, 3 * i) = 1;
     A_dds_dt.insert(3 * i + 1, 3 * i + 1) = 1;
   }
@@ -555,9 +552,9 @@ bool SpeedTimeGraph::SpeedQuadraticProgramming() {
   Eigen::MatrixXd A_jerk_sub(6, 1);
   A_jerk_sub << 0, 0, 1, 0, 0, -1;
 
-  for (int i = 0; i < qp_size - 1; i++) {
-    A_jerk.insert(3 * i, i) = 1;
-    A_jerk.insert(3 * i + 5, i) = -1;
+  for (int i = 0; i < n - 1; i++) {
+    A_jerk.insert(3 * i, 3 * i) = 1;
+    A_jerk.insert(3 * i + 5, 3 * i) = -1;
   }
 
   //为什么二次规划，没有障碍物代价
@@ -567,82 +564,88 @@ bool SpeedTimeGraph::SpeedQuadraticProgramming() {
   H = 2 * H;
 
   //生成f
-  for (int i = 0; i < qp_size; i++) {
+  for (int i = 0; i < n; i++) {
     f(3 * i) =
         -2 * emplaner_conf_.speed_qp_cost_v_ref * emplaner_conf_.ref_speed;
   }
   double index_start = 0;
   //不等式约束，生成A 不允许倒车 si+1-si>0
-  for (int i = 0; i < qp_size - 1; i++) {
-    A_merge.insert(i, 3 * i) = 1;
-    A_merge.insert(i, 3 * i + 3) = -1;
-  }
+  // for (int i = 0; i < n - 1; i++) {
+  //   A_merge.insert(i, 3 * i) = 1;
+  //   A_merge.insert(i, 3 * i + 3) = -1;
+  // }
 
   //生成b,b为0列向量
 
   //等式约束，生成Aeq,连续性约束。学习加加速度算法的原理
-  double dt = emplaner_conf_.planning_cycle_time / n;
+  double dt = dp_speed_points_[1].t;
+
   Eigen::MatrixXd A_sub(6, 2);
   A_sub << 1, 0, dt, 1, (1 / 3) * pow(dt, 2), (1 / 2) * dt, -1, 0, 0, -1,
       (1 / 6) * pow(dt, 2), dt / 2;
-  index_start = qp_size - 1;
-  for (int i = 0; i < qp_size - 1; i++) {
-    double row = qp_size * 2;
-    double col = qp_size * 3;
-    A_merge.insert(index_start + row, col) = 1;
-    A_merge.insert(index_start + row, col + 1) = dt;
-    A_merge.insert(index_start + row, col + 2) = (1 / 3) * pow(dt, 2);
-    A_merge.insert(index_start + row, col + 3) = -1;
-    A_merge.insert(index_start + row, col + 4) = 0;
-    A_merge.insert(index_start + row, col + 5) = (1 / 6) * pow(dt, 2);
+  index_start = n - 1;
+  for (int i = 0; i < n - 1; i++) {
+    double row = index_start + i * 2;
+    double col = i * 3;
+    A_merge.insert(row, col) = 1;
+    A_merge.insert(row, col + 1) = dt;
+    A_merge.insert(row, col + 2) = (1 / 3) * pow(dt, 2);
+    A_merge.insert(row, col + 3) = -1;
+    A_merge.insert(row, col + 4) = 0;
+    A_merge.insert(row, col + 5) = (1 / 6) * pow(dt, 3);
 
-    A_merge.insert(index_start + row + 1, col) = 0;
-    A_merge.insert(index_start + row + 1, col + 1) = 1;
-    A_merge.insert(index_start + row + 1, col + 2) = (1 / 2) * dt;
-    A_merge.insert(index_start + row + 1, col + 3) = 0;
-    A_merge.insert(index_start + row + 1, col + 4) = -1;
-    A_merge.insert(index_start + row + 1, col + 5) = dt / 2;
+    A_merge.insert(row + 1, col) = 0;
+    A_merge.insert(row + 1, col + 1) = 1;
+    A_merge.insert(row + 1, col + 2) = (1 / 2) * dt;
+    A_merge.insert(row + 1, col + 3) = 0;
+    A_merge.insert(row + 1, col + 4) = -1;
+    A_merge.insert(row + 1, col + 5) = dt / 2;
   }
-  index_start = qp_size - 1 + 2 * qp_size - 2;
-  for (int i = 0; i < qp_size; i++) {
-    double row = qp_size;
-    double col = qp_size;
-    A_merge.insert(index_start + row, col) = 1;
+
+  index_start = n - 1 + 2 * n - 2;
+  for (int i = 0; i < n; i++) {
+    double row = index_start + i;
+    double col = i;
+    A_merge.insert(row, col) = 1;
   }
 
   // beq=0
 
   //凸空间约束 生成lb,ub
-  for (int i = 0; i < qp_size; i++) {
+  for (int i = 0; i < n; i++) {
     lb(3 * i) = convex_s_lb_(i);
     lb(3 * i + 1) = convex_ds_dt_lb_(i);
     lb(3 * i + 2) = -6; //最小加速度
+
     ub(3 * i) = convex_s_ub_(i);
     ub(3 * i + 1) = convex_ds_dt_ub_(i);
     ub(3 * i + 2) = 4; //最大加速
   }
 
-  //端点约束
-  lb(1) = 0;
-  lb(2) = plan_start_.ds_dt;
-  lb(3) = plan_start_.dds_dt;
+  for (int i = 0; i < n; i++) {
+    std::cout << convex_s_lb_(i) << "     " << convex_s_ub_(i) << std::endl;
+  }
+
+  //起点约束端点约束
+  lb(0) = 0;
+  lb(1) = st_plan_start_.ds_dt;
+  lb(2) = st_plan_start_.dds_dt;
+  ub(0) = lb(0);
   ub(1) = lb(1);
   ub(2) = lb(2);
-  ub(3) = lb(3);
 
-  // A_merge.block(0, 0, qp_size - 1, 3 * qp_size) = A;
-  // A_merge.block(qp_size - 1, 0, 3 * qp_size, 3 * qp_size) = Aeq;
-  // A_merge.block(qp_size - 1 + 3 * qp_size, 0, 3 * qp_size, 3 * qp_size) =
+  // A_merge.block(0, 0, n - 1, 3 * n) = A;
+  // A_merge.block(n - 1, 0, 3 * n, 3 * n) = Aeq;
+  // A_merge.block(n - 1 + 3 * n, 0, 3 * n, 3 * n) =
   // A_lu;
 
-  lb_merge.block(0, 0, qp_size - 1, 1) =
-      Eigen::VectorXd::Ones(qp_size - 1, 1) * -DBL_MAX;
-  lb_merge.block(qp_size - 1, 0, 3 * qp_size, 1) = beq;
-  lb_merge.block(qp_size - 1 + 3 * qp_size, 0, 3 * qp_size, 1) = lb;
+  lb_merge.block(0, 0, n - 1, 1) = Eigen::VectorXd::Ones(n - 1) * -DBL_MAX;
+  lb_merge.block(n - 1, 0, 2 * n - 2, 1) = beq;
+  lb_merge.block(n - 1 + 2 * n - 2, 0, 3 * n, 1) = lb;
 
-  lb_merge.block(0, 0, qp_size - 1, 1) = b;
-  lb_merge.block(qp_size - 1, 0, 3 * qp_size, 1) = beq;
-  lb_merge.block(qp_size - 1 + 3 * qp_size, 0, 3 * qp_size, 1) = ub;
+  ub_merge.block(0, 0, n - 1, 1) = b;
+  ub_merge.block(n - 1, 0, 2 * n - 2, 1) = beq;
+  ub_merge.block(n - 1 + 2 * n - 2, 0, 3 * n, 1) = ub;
 
   //-----------------------------------------
   // osqp的调用---------------------------------------------------------------
@@ -650,8 +653,7 @@ bool SpeedTimeGraph::SpeedQuadraticProgramming() {
 
   solver.settings()->setWarmStart(true);
   solver.data()->setNumberOfVariables(3 * n); // A矩阵列数
-  solver.data()->setNumberOfConstraints(3 * qp_size + qp_size - 1 +
-                                        3 * qp_size); // A矩阵行数
+  solver.data()->setNumberOfConstraints(n - 1 + 2 * n - 2 + 3 * n); // A矩阵行数
   solver.data()->setHessianMatrix(H);
   solver.data()->setGradient(f);
   solver.data()->setLinearConstraintsMatrix(A_merge);
@@ -666,7 +668,8 @@ bool SpeedTimeGraph::SpeedQuadraticProgramming() {
   Eigen::VectorXd qp_solution(3 * n);
   qp_solution = solver.getSolution();
 
-  for (int i = 0; i < qp_size; i++) {
+  qp_speed_points_.resize(n);
+  for (int i = 0; i < n; i++) {
     qp_speed_points_[i].s = qp_solution(3 * i);
     qp_speed_points_[i].ds_dt = qp_solution(3 * i + 1);
     qp_speed_points_[i].dds_dt = qp_solution(3 * i + 2);
@@ -776,4 +779,8 @@ std::vector<STLine> SpeedTimeGraph::st_obstacles() { return st_obstacles_; }
 
 const std::vector<STPoint> SpeedTimeGraph::dp_speed_points() const {
   return dp_speed_points_;
+}
+
+const std::vector<STPoint> SpeedTimeGraph::qp_speed_points() const {
+  return qp_speed_points_;
 }

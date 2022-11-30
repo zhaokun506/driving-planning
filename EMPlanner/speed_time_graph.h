@@ -21,6 +21,14 @@ public:
   SpeedTimeGraph(ReferenceLine planning_path,
                  EMPlannerConfig emplaner_conf); //传入规划好的路径
   ~SpeedTimeGraph() = default;
+
+  const Trajectory trajectory() const;
+  //虚拟障碍物的xy坐标
+  const std::vector<ObstacleInfo> xy_virtual_obstacles() const;
+  std::vector<STLine> st_obstacles();
+  const std::vector<STPoint> dp_speed_points() const;
+  const std::vector<STPoint> qp_speed_points() const;
+
   // 1.基于规划的轨迹，初始化坐标轴
   void InitSAxis(const ReferenceLine planning_path);
 
@@ -47,14 +55,6 @@ public:
 
   // 7.path和speed的合并
   void PathAndSpeedMerge(int n, double cur_t);
-
-  const Trajectory trajectory() const;
-  const std::vector<ObstacleInfo>
-  xy_virtual_obstacles() const; //虚拟障碍物的xy坐标
-
-  std::vector<STLine> st_obstacles();
-
-  const std::vector<STPoint> dp_speed_points() const;
 
 private:
   EMPlannerConfig emplaner_conf_;
