@@ -109,11 +109,26 @@ void Plot::PlotSTObs(std::vector<STLine> st_obstacles,
 
 void Plot::PlotSTPath(std::vector<STPoint> dp_speed_points,
                       const std::string &color) {
-  std::vector<double> t, s;
+  std::vector<double> t, s, v, a;
 
   for (const auto p : dp_speed_points) {
     t.push_back(p.t);
     s.push_back(p.s);
+    v.push_back(p.ds_dt);
+    a.push_back(p.dds_dt);
   }
   plt::plot(t, s, color);
+  plt::figure(4);
+  plt::plot(t, v, color);
+}
+
+void Plot::PlotSpeedTime(std::vector<STPoint> dp_speed_points,
+                         const std::string &color) {
+  std::vector<double> t, speed;
+
+  for (const auto p : dp_speed_points) {
+    t.push_back(p.t);
+    speed.push_back(p.ds_dt);
+  }
+  plt::plot(t, speed, color);
 }

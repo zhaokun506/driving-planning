@@ -167,7 +167,7 @@ void SpeedTimeGraph::CreateSmaplePoint(int row, int col) { // row=40,col=16;
   % 为了减少算力 采用非均匀采样，s越小的越密，越大的越稀疏
   */
   sample_points_.resize(row);
-  
+
   double s = 0;
   for (int i = 0; i < row; i++) { //
     if (i < 10)
@@ -179,11 +179,11 @@ void SpeedTimeGraph::CreateSmaplePoint(int row, int col) { // row=40,col=16;
     if (i >= 30)
       s = 0.5 * 9 + 1 * 10 + 1.5 * 10 + 2.5 * (i - 29);
 
-    double dt = 1;
+    double dt = 8.0 / col;
     sample_points_[i].resize(col);
     for (int j = 0; j < col; j++) {
       sample_points_[i][j].s = s;
-      sample_points_[i][j].t = (j + 1) * 0.5;
+      sample_points_[i][j].t = (j + 1) * dt;
       sample_points_[i][j].cost2start = DBL_MAX;
     }
   }
@@ -196,7 +196,6 @@ void SpeedTimeGraph::SpeedDynamicPlanning() {
 
   for (int i = 0; i < row; i++) {
     // 第一列的前一个节点只有起点，起点的s t 都是0
-
     sample_points_[i][0].ds_dt =
         sample_points_[i][0].s / sample_points_[i][0].t;
     sample_points_[i][0].dds_dt =
@@ -212,13 +211,13 @@ void SpeedTimeGraph::SpeedDynamicPlanning() {
   for (int j = 1; j < col; j++) {
     for (int i = 0; i < row; i++) {
       for (int k = 0; k <= i; k++) {
-        //根据上一点的速度和加速度计算速度和加速度
-        sample_points_[i][j].ds_dt =
-            (sample_points_[i][j].s - sample_points_[k][j - 1].s) /
-            (sample_points_[i][j].t - sample_points_[k][j - 1].t);
-        sample_points_[i][j].dds_dt =
-            (sample_points_[i][j].ds_dt - sample_points_[k][j - 1].ds_dt) /
-            (sample_points_[i][j].t - sample_points_[k][j - 1].t);
+        //根据上一点的速度和加速度计算速度和加速度，此处删除，否则速度计算会被覆盖
+        // sample_points_[i][j].ds_dt =
+        //     (sample_points_[i][j].s - sample_points_[k][j - 1].s) /
+        //     (sample_points_[i][j].t - sample_points_[k][j - 1].t);
+        // sample_points_[i][j].dds_dt =
+        //     (sample_points_[i][j].ds_dt - sample_points_[k][j - 1].ds_dt) /
+        //     (sample_points_[i][j].t - sample_points_[k][j - 1].t);
 
         double cost =
             sample_points_[k][j - 1].cost2start +
@@ -229,6 +228,8 @@ void SpeedTimeGraph::SpeedDynamicPlanning() {
           sample_points_[i][j].ds_dt =
               (sample_points_[i][j].s - sample_points_[k][j - 1].s) /
               (sample_points_[i][j].t - sample_points_[k][j - 1].t);
+
+          double v = sample_points_[i][j].ds_dt;
           sample_points_[i][j].pre_mincost_row = k;
         }
       }
@@ -254,15 +255,18 @@ void SpeedTimeGraph::SpeedDynamicPlanning() {
       min_col = j;
     }
   }
-  std::vector<STPoint> dp_speed_points(min_col);
+  std::vector<STPoint> dp_speed_points(min_col + 1);
 
-  dp_speed_points[min_col - 1] = sample_points_[min_row][min_col];
-  for (int j = 1; j < min_col; j++) {
-    int pre_mincost_row = dp_speed_points[min_col - j].pre_mincost_row;
-    dp_speed_points[min_col - j] = sample_points_[pre_mincost_row][min_col - j];
+  dp_speed_points[min_col] = sample_points_[min_row][min_col];
+  for (int j = min_col; j >= 1; j--) {
+    int pre_mincost_row = dp_speed_points[j].pre_mincost_row;
+    dp_speed_points[j - 1] = sample_points_[pre_mincost_row][j - 1];
+    double v = dp_speed_points[j - 1].ds_dt;
+    std::cout << v << std::endl;
   }
-  //  dp_speed_points.insert(dp_speed_points.begin(), plan_start_);??
-  //  //插入规划起点
+
+  dp_speed_points.insert(dp_speed_points.begin(), st_plan_start_);
+  //插入规划起点
   dp_speed_points_ = dp_speed_points;
 }
 double SpeedTimeGraph::CalcDpCost(STPoint &point_s, STPoint &point_e) {
@@ -283,13 +287,13 @@ double SpeedTimeGraph::CalcDpCost(STPoint &point_s, STPoint &point_e) {
   double cur_s_dot =
       (point_e.s - point_s.s) / (point_e.t - point_s.t); //计算速度
   double cur_s_dot2 =
-      (point_e.ds_dt - point_s.ds_dt) / (point_e.t - point_s.t); //计算加速度
+      (cur_s_dot - point_s.ds_dt) / (point_e.t - point_s.t); //计算加速度
   //计算推荐速度代价
   double cost_ref_speed = emplaner_conf_.speed_dp_cost_ref_speed *
                           pow(cur_s_dot - emplaner_conf_.ref_speed, 2);
   //  % 计算加速度代价，这里注意，加速度不能超过车辆动力学上下限
   double cost_accel = 0;
-  if (cur_s_dot2 < 4 && cur_s_dot2 > -6)
+  if (cur_s_dot2 < 5 && cur_s_dot2 > -6)
     cost_accel = emplaner_conf_.speed_dp_cost_accel * pow(cur_s_dot2, 2);
   else
     // % 超过车辆动力学限制，代价会增大很多倍
@@ -344,11 +348,11 @@ double SpeedTimeGraph::CalcObsCost(const STPoint &point_s,
 double SpeedTimeGraph::CalcCollisionCost(double w_cost_obs, double min_dis) {
   double collision_cost = 0;
   if (abs(min_dis) < 0.5)
-    collision_cost = w_cost_obs;
-  else if (abs(min_dis) >= 0.5 && abs(min_dis) < 1.5)
+    collision_cost = 10e6;
+  else if (abs(min_dis) >= 0.5 && abs(min_dis) < 2)
     //  % min_dis = 0.5 collision_cost = w_cost_obs ^ 1;
     // % min_dis = 1.5 collision_cost = w_cost_obs ^ 0 = 1
-    collision_cost = pow(w_cost_obs, (0.5 - min_dis) + 1);
+    collision_cost = w_cost_obs * pow(1000, 2 - min_dis);
   else
     collision_cost = 0;
 

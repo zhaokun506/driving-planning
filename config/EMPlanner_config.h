@@ -26,10 +26,10 @@ public:
   double qp_cost_end_dl = 1;
   double qp_cost_end_ddl = 1;
 
-  double ref_speed = 30 / 3.6;
-  double speed_dp_cost_ref_speed = 10;
-  double speed_dp_cost_accel = 0;
-  double speed_dp_cost_obs = 0;
+  double ref_speed = 10;
+  double speed_dp_cost_ref_speed = 100;
+  double speed_dp_cost_accel = 10;
+  double speed_dp_cost_obs = 1;
 
   double speed_qp_cost_v_ref = 1;
   double speed_qp_cost_dds_dt = 1;

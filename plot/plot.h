@@ -29,4 +29,7 @@ public:
 
   void PlotSTPath(std::vector<STPoint> dp_speed_points,
                   const std::string &color);
+
+  void PlotSpeedTime(std::vector<STPoint> dp_speed_points,
+                  const std::string &color);
 };
