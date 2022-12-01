@@ -25,15 +25,14 @@
 ![参考系平滑](https://user-images.githubusercontent.com/54465004/201812152-533bb555-c0a2-46b2-8369-432a21c60b68.png)
 
 路径规划结果dp+qp
+![Figure_3](https://user-images.githubusercontent.com/54465004/204950208-a4ef9fae-c9d6-49b1-ab59-05f498b4aa27.png)
 
-![Figure_3](https://user-images.githubusercontent.com/54465004/204949997-f21350b4-5d23-40d7-a326-97e12a8095c8.png)
+
 
 
 速度规划结果dp+qp
 
-![Figure_4](https://user-images.githubusercontent.com/54465004/204950007-32438247-4996-4118-8f90-2d830389c221.png)
-
-
+![Figure_3](https://user-images.githubusercontent.com/54465004/204949997-f21350b4-5d23-40d7-a326-97e12a8095c8.png)
 
 
 参考文献：
