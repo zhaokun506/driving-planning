@@ -24,13 +24,13 @@
 参考线平滑结果：
 ![参考系平滑](https://user-images.githubusercontent.com/54465004/201812152-533bb555-c0a2-46b2-8369-432a21c60b68.png)
 
-路径规划结果dp+qp
+路径规划结果dp+qp   SL图
 ![Figure_3](https://user-images.githubusercontent.com/54465004/204950208-a4ef9fae-c9d6-49b1-ab59-05f498b4aa27.png)
 
 
 
 
-速度规划结果dp+qp
+速度规划结果dp+qp  ST图
 
 ![Figure_3](https://user-images.githubusercontent.com/54465004/204949997-f21350b4-5d23-40d7-a326-97e12a8095c8.png)
 
