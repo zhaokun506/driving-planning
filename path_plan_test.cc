@@ -109,6 +109,9 @@ int main(int argc, char const *argv[]) {
   plt::figure(3);
   plot->PlotSTPath(em_planner->st_graph_->qp_speed_points(), "b");
 
+  plt::figure(3);
+  plot->PlotSTPath(em_planner->st_graph_->qp_speed_points_dense(), "g");
+
   plt::show();
   return 0;
 }

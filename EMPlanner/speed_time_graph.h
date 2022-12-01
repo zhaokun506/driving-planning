@@ -28,6 +28,7 @@ public:
   std::vector<STLine> st_obstacles();
   const std::vector<STPoint> dp_speed_points() const;
   const std::vector<STPoint> qp_speed_points() const;
+  const std::vector<STPoint> qp_speed_points_dense() const;
 
   // 1.基于规划的轨迹，初始化坐标轴
   void InitSAxis(const ReferenceLine planning_path);
@@ -54,7 +55,7 @@ public:
   void SpeedQpInterpolation(int interpolation_num);
 
   // 7.path和speed的合并
-  void PathAndSpeedMerge(int n, double cur_t);
+  void PathAndSpeedMerge();
 
 private:
   EMPlannerConfig emplaner_conf_;
@@ -82,6 +83,7 @@ private:
   Eigen::VectorXd convex_ds_dt_ub_;
 
   std::vector<STPoint> qp_speed_points_;
+  std::vector<STPoint> qp_speed_points_dense_;
 
   std::vector<TrajectoryPoint> trajectory_points_;
   Trajectory trajectory_;

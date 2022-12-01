@@ -36,10 +36,10 @@ void EMPlanner::Plan(const u_int64_t current_time,
   st_graph_->SpeedDynamicPlanning();
   st_graph_->GenerateCovexSpace();
   st_graph_->SpeedQuadraticProgramming();
-  // st_graph_->SpeedQpInterpolation(601);
+  st_graph_->SpeedQpInterpolation(601);
 
   // //路径和速度合并
-  // // st_graph->PathAndSpeedMerge();
+  st_graph_->PathAndSpeedMerge();
   // *trajectory = st_graph_->trajectory();
   // xy_virtual_obstacles = st_graph_->xy_virtual_obstacles();
 }

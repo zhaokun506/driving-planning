@@ -361,7 +361,7 @@ double SpeedTimeGraph::CalcCollisionCost(double w_cost_obs, double min_dis) {
 
 void SpeedTimeGraph::GenerateCovexSpace() {
   int n = dp_speed_points_.size();
-  convex_s_lb_ = Eigen::VectorXd::Ones(n) * (-DBL_MAX);
+  convex_s_lb_ = Eigen::VectorXd::Zero(n);
   convex_s_ub_ = Eigen::VectorXd::Ones(n) * DBL_MAX;
   convex_ds_dt_lb_ = Eigen::VectorXd::Ones(n) * (-DBL_MAX);
   convex_ds_dt_ub_ = Eigen::VectorXd::Ones(n) * DBL_MAX;
@@ -523,16 +523,16 @@ bool SpeedTimeGraph::SpeedQuadraticProgramming() {
   // f矩阵 3n*1
   Eigen::VectorXd f = Eigen::VectorXd::Zero(3 * n);
 
-  //不等式约束
+  //不等式约束,允许倒车
   Eigen::SparseMatrix<double> A(n - 1, 3 * n);
   Eigen::VectorXd b = Eigen::VectorXd::Zero(n - 1);
 
-  //等式约束
+  //等式约束，连续性
   Eigen::SparseMatrix<double> Aeq(2 * n - 2, 3 * n);
-  Eigen::SparseMatrix<double> Aeq_tran(3 * n, 2 * n - 2);
+  // Eigen::SparseMatrix<double> Aeq_tran(3 * n, 2 * n - 2);
   Eigen::VectorXd beq = Eigen::VectorXd::Zero(2 * n - 2);
 
-  //上下边界约束
+  //上下边界约束，凸空间
   Eigen::SparseMatrix<double> A_lu(3 * n, 3 * n);
   A_lu.setIdentity();
   Eigen::VectorXd lb = Eigen::VectorXd::Zero(3 * n);
@@ -545,16 +545,17 @@ bool SpeedTimeGraph::SpeedQuadraticProgramming() {
 
   //生成H
   for (int i = 0; i < n; i++) {
-    A_ref.insert(3 * i, 3 * i) = 1;
-    A_dds_dt.insert(3 * i + 1, 3 * i + 1) = 1;
+    A_ref.insert(3 * i + 1, 3 * i + 1) = 1;
+    A_dds_dt.insert(3 * i + 2, 3 * i + 2) = 1;
   }
 
   Eigen::MatrixXd A_jerk_sub(6, 1);
   A_jerk_sub << 0, 0, 1, 0, 0, -1;
 
+  //??
   for (int i = 0; i < n - 1; i++) {
-    A_jerk.insert(3 * i, 3 * i) = 1;
-    A_jerk.insert(3 * i + 5, 3 * i) = -1;
+    A_jerk.insert(3 * i + 2, 3 * i + 2) = 0;
+    A_jerk.insert(3 * (i + 1), 3 * (i + 1) + 2) = 0;
   }
 
   //为什么二次规划，没有障碍物代价
@@ -569,11 +570,11 @@ bool SpeedTimeGraph::SpeedQuadraticProgramming() {
         -2 * emplaner_conf_.speed_qp_cost_v_ref * emplaner_conf_.ref_speed;
   }
   double index_start = 0;
-  //不等式约束，生成A 不允许倒车 si+1-si>0
-  // for (int i = 0; i < n - 1; i++) {
-  //   A_merge.insert(i, 3 * i) = 1;
-  //   A_merge.insert(i, 3 * i + 3) = -1;
-  // }
+  // 不等式约束，生成A 不允许倒车 si+1-si>0
+  for (int i = 0; i < n - 1; i++) {
+    A_merge.insert(i, 3 * i) = 1;
+    A_merge.insert(i, 3 * i + 3) = -1;
+  }
 
   //生成b,b为0列向量
 
@@ -604,9 +605,11 @@ bool SpeedTimeGraph::SpeedQuadraticProgramming() {
 
   index_start = n - 1 + 2 * n - 2;
   for (int i = 0; i < n; i++) {
-    double row = index_start + i;
-    double col = i;
+    double row = index_start + 3 * i;
+    double col = 3 * i;
     A_merge.insert(row, col) = 1;
+    A_merge.insert(row + 1, col + 1) = 1;
+    A_merge.insert(row + 2, col + 2) = 1;
   }
 
   // beq=0
@@ -688,57 +691,59 @@ void SpeedTimeGraph::SpeedQpInterpolation(int n) //点的个数401
   */
 
   //是否排除空数据
+  qp_speed_points_dense_.resize(n);
   double t_qp = qp_speed_points_.back().t;
   double dt = t_qp / (n - 1);
 
   for (int i = 0; i < n; i++) {
     double cur_t = i * dt;
-    int index = 0;
-    double t_qp = qp_speed_points_.back().t;
     int j = 0;
-    for (j = 0; j < qp_speed_points_.size(); j++) {
+    for (j = 0; j < qp_speed_points_.size() - 1; j++) {
       if (qp_speed_points_[j].t <= cur_t && qp_speed_points_[j + 1].t > cur_t)
         break;
     }
     double dt_2pre = cur_t - qp_speed_points_[j].t;
-    dp_speed_points_dense_[i].s =
+    qp_speed_points_dense_[i].s =
         qp_speed_points_[j].s + qp_speed_points_[j].ds_dt * dt_2pre +
         (1 / 3) * qp_speed_points_[j].dds_dt * pow(dt_2pre, 2) +
-        (1 / 6) * qp_speed_points_[j + 1].dds_dt * pow(dt_2pre, 2);
-    dp_speed_points_dense_[i].ds_dt =
+        (1 / 6) * qp_speed_points_[j + 1].dds_dt * pow(dt_2pre, 3);
+    qp_speed_points_dense_[i].ds_dt =
         qp_speed_points_[j].ds_dt + 0.5 * qp_speed_points_[j].dds_dt * dt_2pre;
-    dp_speed_points_dense_[i].dds_dt =
+    qp_speed_points_dense_[i].dds_dt =
         qp_speed_points_[j].dds_dt +
         (qp_speed_points_[j + 1].dds_dt - qp_speed_points_[j].dds_dt) *
-            dt_2pre / (qp_speed_points_[j + 1].t - qp_speed_points_[j + 1].t);
-    dp_speed_points_dense_[i].t = cur_t;
+            dt_2pre / (qp_speed_points_[j + 1].t - qp_speed_points_[j].t);
+    qp_speed_points_dense_[i].t = cur_t;
   }
 }
 
-void SpeedTimeGraph::PathAndSpeedMerge(int n, double cur_t) {
+void SpeedTimeGraph::PathAndSpeedMerge() {
   /*
   该函数将合并path和speed
-  % 由于path 是 60个点，speed 有
-  401个点，合并后，path和speed有401个点，因此需要做插值
+  % 由于path 是 61个点，speed 有
+  601个点，合并后，path和speed有601个点，因此需要做插值
   */
+  double cur_t = 0;
+  int n = qp_speed_points_dense_.size();
   auto planning_path_points = planning_path_.reference_points();
-
+  trajectory_points_.resize(n);
   for (int i = 0; i < n - 1; i++) {
-    trajectory_points_[i].t = cur_t + qp_speed_points_[i].t;
-    trajectory_points_[i].v = qp_speed_points_[i].ds_dt;
-    trajectory_points_[i].a = qp_speed_points_[i].dds_dt;
+    trajectory_points_[i].t = cur_t + qp_speed_points_dense_[i].t;
+    trajectory_points_[i].v = qp_speed_points_dense_[i].ds_dt;
+    trajectory_points_[i].a = qp_speed_points_dense_[i].dds_dt;
 
     //查找s对应到sl的index
     int j = 0;
     for (j = 0; j < sl_planning_path_.size() - 1; j++) {
-      if (sl_planning_path_[j].s <= qp_speed_points_[i].s &&
-          sl_planning_path_[j + 1].s > qp_speed_points_[i].s)
+      if (sl_planning_path_[j].s <= qp_speed_points_dense_[i].s &&
+          sl_planning_path_[j + 1].s > qp_speed_points_dense_[i].s)
         break;
     }
     //线性插值
 
-    double k = (qp_speed_points_[i].s - sl_planning_path_[j].s) /
+    double k = (qp_speed_points_dense_[i].s - sl_planning_path_[j].s) /
                (sl_planning_path_[j + 1].s - sl_planning_path_[j].s);
+
     trajectory_points_[i].x =
         planning_path_points[j].x +
         k * (planning_path_points[j + 1].x - planning_path_points[j].x);
@@ -783,4 +788,8 @@ const std::vector<STPoint> SpeedTimeGraph::dp_speed_points() const {
 
 const std::vector<STPoint> SpeedTimeGraph::qp_speed_points() const {
   return qp_speed_points_;
+}
+
+const std::vector<STPoint> SpeedTimeGraph::qp_speed_points_dense() const {
+  return qp_speed_points_dense_;
 }

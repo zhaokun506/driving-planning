@@ -31,9 +31,9 @@ public:
   double speed_dp_cost_accel = 10;
   double speed_dp_cost_obs = 1;
 
-  double speed_qp_cost_v_ref = 10;
-  double speed_qp_cost_dds_dt = 1;
-  double speed_qp_cost_jerk = 1;
+  double speed_qp_cost_v_ref = 8;
+  double speed_qp_cost_dds_dt = 5;
+  double speed_qp_cost_jerk = 0;
 
   double max_lateral_accel = 1;
 };
