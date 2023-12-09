@@ -22,17 +22,18 @@
         2.参考线的平滑
 
 ## 2.使用方法
-- 1.自行安装python库
-- 2.安装第三方依赖库(我已经安装完毕，在bin/libary目录下)
+1.ubuntu20.04 自行安装python cmake库
+2.安装第三方依赖库(我已经安装完毕，在bin/libary目录下)
      eigen3.3.7
      osqp0.6.3
      osqp-eigen0.8.0
-- 3. source tools/BuildEnv
-- 4. make build
-- 5. cd build
-- 6. cmake ../src
-- 7. make
-- 8. ./bin/path_plan_test
+3. source tools/BuildEnv
+4. 修改 src/CMakeLists.txt内的python路径
+5. make build
+6. cd build
+7. cmake ../src
+8. make
+9. ./bin/path_plan_test
 
 
 
