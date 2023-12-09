@@ -1,0 +1,35 @@
+
+# Finds  qdldl and compilers and extends
+include($ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-0.6.3/lib/cmake/qdldl/qdldl-config.cmake)
+include($ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-0.6.3/lib/cmake/qdldl/qdldl-targets.cmake)
+find_package(qdldl REQUIRED HINTS  $ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-0.6.3/lib/cmake/qdldl)
+if(qdldl_FOUND)
+    message("${BoldCyan} [ok] qdldl library found ${ColourReset}")
+    file(GLOB qdldl $ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-0.6.3/lib/*.so)
+    set(qdldl_INCLUDE_DIR $ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-0.6.3/include/)
+    set(qdldl_LIBRARY_DIR $ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-0.6.3/lib)
+    message(STATUS "qdldl include path : ${qdldl_INCLUDE_DIR}")
+    message(STATUS "qdldl library path : ${qdldl_LIBRARY_DIR}")
+endif()
+include_directories(${qdldl_INCLUDE_DIR})
+
+# Finds  osqp and compilers and extends
+include($ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-0.6.3/lib/cmake/osqp/osqp-config.cmake)
+include($ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-0.6.3/lib/cmake/osqp/osqp-targets.cmake)
+find_package(osqp REQUIRED HINTS  $ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-0.6.3/lib/cmake/osqp)
+if(osqp_FOUND)
+    # 已经包含qdldl
+    file(GLOB osqp $ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-0.6.3/lib/*.so)
+    set(osqp_LIBRARY_DIR $ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-0.6.3/lib)
+    set(osqp_INCLUDE_DIR $ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-0.6.3/include)
+    message("${BoldCyan} [ok] osqp library found ${ColourReset}")
+    message(STATUS "osqp version : ${osqp_VERSION_STRING}")
+    message(STATUS "ospq include path : ${osqp_INCLUDE_DIR}")
+    message(STATUS "osqp library dirs: ${osqp_LIBRARY_DIR}")
+endif()
+
+# if(NOT ${PACKAGE_VERSION} STREQUAL "3.3.7")
+#     message(FATAL_ERROR "${Red} [error] tsgo apollo need osqp 3.3.7 ${ColourReset}")
+# endif()
+include_directories(${osqp_INCLUDE_DIR})
+include_directories(${osqp_INCLUDE_DIR}/osqp)

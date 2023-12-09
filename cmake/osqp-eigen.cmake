@@ -1,0 +1,16 @@
+
+# Finds  OsqpEigen and compilers and extends
+include($ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-eigen-0.8.0/lib/cmake/OsqpEigen/OsqpEigenConfig.cmake)
+include($ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-eigen-0.8.0/lib/cmake/OsqpEigen/OsqpEigenConfigVersion.cmake)
+include($ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-eigen-0.8.0/lib/cmake/OsqpEigen/OsqpEigenTargets-release.cmake)
+include($ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-eigen-0.8.0/lib/cmake/OsqpEigen/OsqpEigenTargets.cmake)
+find_package(OsqpEigen REQUIRED HINTS  $ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-eigen-0.8.0/lib/cmake/OsqpEigen)
+if(OsqpEigen_FOUND)
+    message("${BoldCyan} [ok] OsqpEigen library found ${ColourReset}")
+    file(GLOB OsqpEigen $ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-eigen-0.8.0/lib/*.so)
+    set(OsqpEigen_INCLUDE_DIR $ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-eigen-0.8.0/include/)
+    set(OsqpEigen_LIBRARY_DIR $ENV{THIRD_LIBRARY_INSTALL_PATH}/osqp-eigen-0.8.0/lib)
+    message(STATUS "OsqpEigen include path : ${OsqpEigen_INCLUDE_DIR}")
+    message(STATUS "OsqpEigen library path : ${OsqpEigen_LIBRARY_DIR}")
+endif()
+include_directories(${OsqpEigen_INCLUDE_DIR})
